@@ -1,15 +1,8 @@
 import type { NextConfig } from "next";
-import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   // ใช้ Turbopack แบบเต็มรูปแบบ
   turbopack: {},
 };
 
-// กำหนดค่า PWA
-export default withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development", // ปิดในโหมด dev
-})(nextConfig);
+export default nextConfig;
