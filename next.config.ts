@@ -2,8 +2,17 @@ import type { NextConfig } from "next";
 import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
-  // กำหนดค่าว่างเพื่อใช้ Turbopack
-  turbopack: {},
+  // ปิด Turbopack เพื่อแก้ปัญหา ssh2
+  // turbopack: {},
+
+  // เพิ่ม webpack config สำหรับ ssh2
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('ssh2');
+    }
+    return config;
+  },
 };
 
 // กำหนดค่า PWA
