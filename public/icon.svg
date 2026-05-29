@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- พื้นหลัง -->
+  <rect width="512" height="512" fill="#000000" rx="128"/>
+
+  <!-- รูปเซิร์ฟเวอร์ -->
+  <g transform="translate(256, 256)">
+    <!-- Server rack 1 -->
+    <rect x="-120" y="-140" width="240" height="60" fill="#2563eb" rx="8"/>
+    <circle cx="-80" cy="-110" r="8" fill="#22c55e"/>
+    <circle cx="-50" cy="-110" r="8" fill="#22c55e"/>
+    <line x1="-20" y1="-120" x2="100" y2="-120" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="-110" x2="80" y2="-110" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="-100" x2="60" y2="-100" stroke="#60a5fa" stroke-width="4"/>
+
+    <!-- Server rack 2 -->
+    <rect x="-120" y="-70" width="240" height="60" fill="#2563eb" rx="8"/>
+    <circle cx="-80" cy="-40" r="8" fill="#22c55e"/>
+    <circle cx="-50" cy="-40" r="8" fill="#fbbf24"/>
+    <line x1="-20" y1="-50" x2="100" y2="-50" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="-40" x2="80" y2="-40" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="-30" x2="60" y2="-30" stroke="#60a5fa" stroke-width="4"/>
+
+    <!-- Server rack 3 -->
+    <rect x="-120" y="0" width="240" height="60" fill="#2563eb" rx="8"/>
+    <circle cx="-80" cy="30" r="8" fill="#22c55e"/>
+    <circle cx="-50" cy="30" r="8" fill="#22c55e"/>
+    <line x1="-20" y1="20" x2="100" y2="20" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="30" x2="80" y2="30" stroke="#60a5fa" stroke-width="4"/>
+    <line x1="-20" y1="40" x2="60" y2="40" stroke="#60a5fa" stroke-width="4"/>
+
+    <!-- Terminal symbol -->
+    <rect x="-120" y="80" width="240" height="80" fill="#1e293b" rx="8"/>
+    <text x="-100" y="125" fill="#22c55e" font-family="monospace" font-size="36" font-weight="bold">&gt;_</text>
+    <rect x="-60" y="105" width="60" height="4" fill="#22c55e"/>
+  </g>
+
+  <!-- Text VPS -->
+  <text x="256" y="440" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="60" font-weight="bold">VPS</text>
+</svg>

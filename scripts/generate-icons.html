@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h2>📱 วิธีสร้างไอคอน PWA</h2>
+    <p>1. เปิดไฟล์ <code>public/icon.svg</code> ในโปรแกรมแก้ไขภาพ (เช่น Figma, Adobe XD, หรือ GIMP)</p>
+    <p>2. Export เป็น PNG ขนาด:</p>
+    <ul>
+        <li>192x192 pixels → บันทึกเป็น <code>public/icon-192.png</code></li>
+        <li>512x512 pixels → บันทึกเป็น <code>public/icon-512.png</code></li>
+    </ul>
+    <p>3. หรือใช้เครื่องมือออนไลน์:</p>
+    <ul>
+        <li><a href="https://realfavicongenerator.net/" target="_blank">RealFaviconGenerator</a></li>
+        <li><a href="https://www.pwabuilder.com/imageGenerator" target="_blank">PWABuilder Image Generator</a></li>
+    </ul>
+
+    <hr>
+
+    <h3>🎨 หรือใช้ Canvas สร้างไอคอนง่ายๆ (ทดสอบ):</h3>
+    <canvas id="icon192" width="192" height="192"></canvas>
+    <canvas id="icon512" width="512" height="512" style="display:none;"></canvas>
+    <br><br>
+    <button onclick="generateIcons()">สร้างไอคอน</button>
+    <button onclick="downloadIcon(192)">ดาวน์โหลด 192x192</button>
+    <button onclick="downloadIcon(512)">ดาวน์โหลด 512x512</button>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // พื้นหลังดำ
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, size, size);
+
+            // วาดเซิร์ฟเวอร์ (แบบง่าย)
+            const scale = size / 512;
+            ctx.save();
+            ctx.translate(size/2, size/2);
+            ctx.scale(scale, scale);
+
+            // Server racks
+            const drawServer = (y, ledColor) => {
+                ctx.fillStyle = '#2563eb';
+                ctx.fillRect(-120, y, 240, 60);
+
+                // LED
+                ctx.fillStyle = ledColor;
+                ctx.beginPath();
+                ctx.arc(-80, y+30, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Lines
+                ctx.strokeStyle = '#60a5fa';
+                ctx.lineWidth = 4;
+                for(let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(-20, y + 10 + i*10);
+                    ctx.lineTo(100 - i*20, y + 10 + i*10);
+                    ctx.stroke();
+                }
+            };
+
+            drawServer(-140, '#22c55e');
+            drawServer(-70, '#fbbf24');
+            drawServer(0, '#22c55e');
+
+            // Terminal
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(-120, 80, 240, 80);
+            ctx.fillStyle = '#22c55e';
+            ctx.font = 'bold 36px monospace';
+            ctx.fillText('>_', -100, 125);
+
+            ctx.restore();
+
+            // Text VPS
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size/8}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('VPS', size/2, size * 0.85);
+        }
+
+        function generateIcons() {
+            drawIcon(document.getElementById('icon192'), 192);
+            drawIcon(document.getElementById('icon512'), 512);
+            alert('✅ สร้างไอคอนเรียบร้อย! คลิกปุ่มดาวน์โหลด');
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`icon${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // สร้างอัตโนมัติเมื่อโหลดหน้า
+        window.onload = () => {
+            generateIcons();
+        };
+    </script>
+</body>
+</html>
