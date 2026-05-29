@@ -636,6 +636,106 @@ export default function NNVPSPage() {
       )}
 
       {/* ══════════════════════════════════════════════
+          ส่วนวิธีติดตั้งระบบเครื่องแม่ลูก
+      ══════════════════════════════════════════════ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-black mb-4"
+              style={{ color: dark ? '#F5E6A3' : '#1a1208',
+                       textShadow: dark ? '0 2px 4px rgba(0,0,0,0.5)' : 'none' }}>
+            🖥️ ติดตั้งระบบเครื่องแม่ลูก
+          </h2>
+          <p style={{ color: dark ? '#9A7B2A' : '#5a3e00' }}>
+            ระบบเชื่อมต่อเครื่องคอมพิวเตอร์ของคุณกับระบบ VPS แบบอัตโนมัติ
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {/* การ์ดซ้าย - ดาวน์โหลด Agent */}
+          <div className="rounded-2xl p-8 border transition-all hover:scale-105"
+               style={{
+                 background: dark ? 'rgba(212,175,55,0.06)' : 'linear-gradient(135deg,#F5E6A3,#D4AF37)',
+                 border: dark ? '1px solid rgba(212,175,55,0.18)' : '1px solid rgba(180,140,40,0.4)',
+                 boxShadow: dark ? '0 8px 32px rgba(0,0,0,0.7)' : '0 8px 32px rgba(212,175,55,0.3)'
+               }}>
+            <div className="text-6xl mb-4 text-center">📥</div>
+            <h3 className="text-xl font-black mb-3 text-center"
+                style={{ color: dark ? '#F5E6A3' : '#1a1208' }}>
+              ดาวน์โหลด Agent
+            </h3>
+            <p className="text-sm mb-6 text-center"
+               style={{ color: dark ? '#9A7B2A' : '#5a3e00' }}>
+              โปรแกรมติดตั้งบนเครื่องที่ต้องการเชื่อมต่อ
+            </p>
+            <a href="/agent/install.ps1"
+               download
+               className="block w-full text-center font-bold py-3 rounded-xl transition-all hover:scale-105"
+               style={{
+                 background: 'linear-gradient(135deg, #1877F2 0%, #0D5DBE 100%)',
+                 color: 'white',
+                 boxShadow: '0 4px 12px rgba(24,119,242,0.4)'
+               }}>
+              💾 ดาวน์โหลด install.ps1
+            </a>
+          </div>
+
+          {/* การ์ดขวา - คู่มือติดตั้ง */}
+          <div className="rounded-2xl p-8 border transition-all hover:scale-105"
+               style={{
+                 background: dark ? 'rgba(212,175,55,0.06)' : 'linear-gradient(135deg,#F5E6A3,#D4AF37)',
+                 border: dark ? '1px solid rgba(212,175,55,0.18)' : '1px solid rgba(180,140,40,0.4)',
+                 boxShadow: dark ? '0 8px 32px rgba(0,0,0,0.7)' : '0 8px 32px rgba(212,175,55,0.3)'
+               }}>
+            <div className="text-6xl mb-4 text-center">📖</div>
+            <h3 className="text-xl font-black mb-3 text-center"
+                style={{ color: dark ? '#F5E6A3' : '#1a1208' }}>
+              คู่มือติดตั้ง
+            </h3>
+            <p className="text-sm mb-6 text-center"
+               style={{ color: dark ? '#9A7B2A' : '#5a3e00' }}>
+              วิธีติดตั้งและใช้งานแบบละเอียด
+            </p>
+            <a href="/INSTALL_GUIDE.md"
+               target="_blank"
+               className="block w-full text-center font-bold py-3 rounded-xl transition-all hover:scale-105"
+               style={{
+                 background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                 color: 'white',
+                 boxShadow: '0 4px 12px rgba(34,197,94,0.4)'
+               }}>
+              📚 อ่านคู่มือ
+            </a>
+          </div>
+        </div>
+
+        {/* ขั้นตอนสั้นๆ */}
+        <div className="mt-12 max-w-2xl mx-auto rounded-2xl p-6"
+             style={{
+               background: dark ? 'rgba(212,175,55,0.03)' : 'rgba(212,175,55,0.08)',
+               border: dark ? '1px solid rgba(212,175,55,0.12)' : '1px solid rgba(180,140,40,0.2)'
+             }}>
+          <h4 className="font-black mb-4 text-center"
+              style={{ color: dark ? '#F5E6A3' : '#1a1208' }}>
+            ⚡ ติดตั้งง่ายๆ 3 ขั้นตอน
+          </h4>
+          <ol className="space-y-3" style={{ color: dark ? '#9A7B2A' : '#5a3e00' }}>
+            <li className="flex items-start gap-3">
+              <span className="font-black text-xl">1️⃣</span>
+              <span>ดาวน์โหลดไฟล์ <code className="bg-black/20 px-2 py-1 rounded">install.ps1</code></span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="font-black text-xl">2️⃣</span>
+              <span>เปิด PowerShell แบบ Administrator</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="font-black text-xl">3️⃣</span>
+              <span>รันคำสั่ง: <code className="bg-black/20 px-2 py-1 rounded">.\install.ps1</code></span>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
           FOOTER
       ══════════════════════════════════════════════ */}
       <Footer dark={dark} />
