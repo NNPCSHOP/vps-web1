@@ -1,9 +1,9 @@
 # ============================================================
 #  NNVPS Agent Installer
-#  รันด้วย: powershell -ExecutionPolicy Bypass -File install.ps1 -ServerURL "http://192.168.1.x:3000"
+#  รันด้วย: powershell -ExecutionPolicy Bypass -File install.ps1
 # ============================================================
 param(
-    [string]$ServerURL = "http://localhost:3000",
+    [string]$ServerURL = "https://vps-web1.vercel.app",
     [int]$Interval     = 5    # ส่ง screenshot ทุกกี่วินาที (3 / 5 / 10)
 )
 
