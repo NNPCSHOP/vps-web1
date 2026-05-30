@@ -97,11 +97,28 @@ export default function AdminPage() {
   const [passInput,  setPassInput] = useState('')
   const [passErr,    setPassErr]   = useState(false)
 
-  function handleLogin() {
-    // ตรวจสอบ username และ password
-    // Format: username:password
-    if (passInput === 'NO02072536:n02071993') { setAuthed(true) }
-    else { setPassErr(true); setTimeout(() => setPassErr(false), 1500) }
+  async function handleLogin() {
+    try {
+      // ส่งไปตรวจสอบที่ API แทนการเช็คในโค้ด
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentials: passInput })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setAuthed(true)
+        // เก็บ session token (ถ้ามี)
+        if (data.token) sessionStorage.setItem('admin_token', data.token)
+      } else {
+        setPassErr(true)
+        setTimeout(() => setPassErr(false), 1500)
+      }
+    } catch {
+      setPassErr(true)
+      setTimeout(() => setPassErr(false), 1500)
+    }
   }
 
   if (!authed) return (
