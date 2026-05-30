@@ -1,87 +1,87 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+ไฟล์นี้ให้คำแนะนำแก่ Claude Code (claude.ai/code) เมื่อทำงานกับโค้ดในโปรเจคนี้
 
-## Next.js Version Warning
+## คำเตือนเรื่อง Next.js Version
 
-**This is NOT the Next.js you know.** This project runs Next.js **16.2.6** with React 19.2.4 — APIs, conventions, and file structure may differ from training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+**Next.js ในโปรเจคนี้ไม่เหมือนที่คุ้นเคย** โปรเจคนี้ใช้ Next.js **16.2.6** กับ React 19.2.4 — API, รูปแบบ, และโครงสร้างไฟล์อาจแตกต่างจากข้อมูลที่เคยเรียนรู้มา ให้อ่านคู่มือที่เกี่ยวข้องใน `node_modules/next/dist/docs/` ก่อนเขียนโค้ดเสมอ และใส่ใจกับ deprecation notices
 
-## Commands
+## คำสั่งที่ใช้บ่อย
 
 ```bash
-npm run dev      # Dev server with Turbopack
-npm run build    # Production build
-npm start        # Start production server
-npm run lint     # ESLint
+npm run dev      # รันเซิร์ฟเวอร์พัฒนา (ใช้ Turbopack)
+npm run build    # สร้าง production build
+npm start        # รัน production server
+npm run lint     # ตรวจสอบ ESLint
 ```
 
-There are no tests in this project.
+โปรเจคนี้**ไม่มี test** ใดๆ
 
-Admin credentials are required via environment variables before the admin panel works:
+ต้องตั้งค่า environment variables ก่อนจึงจะใช้ admin panel ได้:
 ```
 ADMIN_USERNAME=<username>
 ADMIN_PASSWORD=<password>
 ```
 
-## Architecture Overview
+## ภาพรวมสถาปัตยกรรม
 
-**NNVPS** is a Thai VPS rental shop — customers browse available Windows farm machines, register/login, top up balance via PromptPay QR, and rent machines that expose AnyDesk credentials.
+**NNVPS** คือเว็บร้านเช่าคอมฟาร์ม (VPS) แบบอัตโนมัติ ลูกค้าสามารถดูเครื่องที่ว่าง สมัครสมาชิก/เข้าสู่ระบบ เติมเงินผ่าน PromptPay QR แล้วเช่าเครื่องเพื่อรับ AnyDesk credentials
 
-### Pages
-- `app/page.tsx` — Customer-facing shop (~1970 lines). All UI components are defined inline in a single file: `PCCard`, `LoginPanel`, `UserPanel`, `RentalInfoModal`, `CountdownTimerInline`, marble SVG backgrounds, footer, etc.
-- `app/admin/page.tsx` — Admin dashboard (~1400 lines). Similarly monolithic: `AdminDashboard`, `DashboardTab`, `MachinesTab`, `AgentTab`, `UsersTab`, `PaymentsTab` all in one file.
-- `app/download/page.tsx` — Download page for the Windows agent installer.
+### หน้าเว็บ
+- `app/page.tsx` — หน้าร้านลูกค้า (~1970 บรรทัด) ทุก UI component ถูกนิยามไว้ในไฟล์เดียว: `PCCard`, `LoginPanel`, `UserPanel`, `RentalInfoModal`, `CountdownTimerInline`, SVG พื้นหลังหินอ่อน, footer ฯลฯ
+- `app/admin/page.tsx` — แดชบอร์ด Admin (~1400 บรรทัด) เช่นเดียวกัน: `AdminDashboard`, `DashboardTab`, `MachinesTab`, `AgentTab`, `UsersTab`, `PaymentsTab` อยู่ในไฟล์เดียว
+- `app/download/page.tsx` — หน้าดาวน์โหลดสคริปต์ติดตั้ง agent สำหรับ Windows
 
-### Data Layer
+### ชั้นข้อมูล
 
-`lib/data.ts` defines the canonical types (`Machine`, `User`, `Payment`) and seed data (`INIT_MACHINES`, `INIT_USERS`, `INIT_PAYMENTS`).
+`lib/data.ts` กำหนด type หลัก (`Machine`, `User`, `Payment`) และข้อมูลเริ่มต้น (`INIT_MACHINES`, `INIT_USERS`, `INIT_PAYMENTS`)
 
-`lib/store.ts` holds three in-memory singleton stores:
-- `store` (DataStore) — machines, users, payments. **Resets to seed data on every server restart.**
-- `agentStore` (AgentStore) — in-memory agent registry with 15s online timeout.
-- `commandStore` (CommandStore) — in-memory queue for commands sent to agents.
+`lib/store.ts` มี singleton store แบบ in-memory สามตัว:
+- `store` (DataStore) — เก็บเครื่อง, ผู้ใช้, การชำระเงิน **ข้อมูลจะรีเซ็ตกลับเป็นค่าเริ่มต้นทุกครั้งที่รีสตาร์ทเซิร์ฟเวอร์**
+- `agentStore` (AgentStore) — ทะเบียน agent แบบ in-memory โดยมี timeout 15 วินาที
+- `commandStore` (CommandStore) — คิวคำสั่งที่รอส่งไปยัง agent
 
-`lib/agentStore.ts` is a **separate file-based** implementation that persists to `data/agents.json` and `data/commands.json`, and saves screenshots to `public/screenshots/`. This is a parallel implementation — some API routes use one, some use the other (see below).
+`lib/agentStore.ts` คือ**อีก implementation หนึ่ง**ที่บันทึกลงไฟล์ `data/agents.json` และ `data/commands.json` และบันทึก screenshot ไปที่ `public/screenshots/` — มี route บางตัวใช้ไฟล์นี้ บางตัวใช้ `lib/store.ts` (ดูตารางด้านล่าง)
 
 ### API Routes
 
-| Route | Store used |
+| Route | Store ที่ใช้ |
 |---|---|
 | `/api/machines`, `/api/machines/[id]` | `lib/store` (in-memory) |
 | `/api/users`, `/api/users/[id]` | `lib/store` (in-memory) |
-| `/api/admin/login` | env vars only |
+| `/api/admin/login` | env vars เท่านั้น |
 | `/api/agent/heartbeat` | `lib/store` agentStore (in-memory) |
 | `/api/agent/list` | `lib/store` agentStore (in-memory) |
 | `/api/agent/command` | `lib/store` commandStore (in-memory) |
 | `/api/agent/setpassword` | `lib/store` store + commandStore |
-| `/api/agent/register` | `lib/agentStore` (file-based) |
-| `/api/agent/screenshot` | `lib/agentStore` (file-based) |
+| `/api/agent/register` | `lib/agentStore` (บันทึกลงไฟล์) |
+| `/api/agent/screenshot` | `lib/agentStore` (บันทึกลงไฟล์) |
 
-**Known inconsistency:** `register` and `screenshot` write to the file-based `lib/agentStore`, but `list` reads from the in-memory `lib/store` agentStore. Agents registered via `/api/agent/register` will not appear in the admin Agents tab — only those that sent a heartbeat to `/api/agent/heartbeat` will.
+**ปัญหาที่รู้อยู่แล้ว:** `register` และ `screenshot` เขียนลง `lib/agentStore` (ไฟล์) แต่ `list` อ่านจาก `lib/store` agentStore (in-memory) — agent ที่ลงทะเบียนผ่าน `/api/agent/register` จะ**ไม่ปรากฏ**ใน Agents tab ของ Admin มีเฉพาะ agent ที่ส่ง heartbeat มาที่ `/api/agent/heartbeat` เท่านั้นที่จะแสดง
 
-### Agent System
+### ระบบ Agent
 
-Windows machines run a PowerShell agent (`public/NNVPS-Agent.ps1`, installer at `public/install.ps1` and `agent/install.ps1`). The agent:
-- Sends heartbeat every 5s to `/api/agent/heartbeat` with CPU/RAM stats
-- Polls `/api/agent/command` for pending commands (e.g., `setPassword`)
-- Confirms completed commands via `/api/agent/confirm`
-- Posts screenshots to `/api/agent/screenshot` (saved to `public/screenshots/{machineId}.jpg`)
+เครื่อง Windows ของลูกค้ารัน PowerShell agent (`public/NNVPS-Agent.ps1`, ติดตั้งผ่าน `public/install.ps1` หรือ `agent/install.ps1`) โดย agent จะ:
+- ส่ง heartbeat ทุก 5 วินาทีไปที่ `/api/agent/heartbeat` พร้อมข้อมูล CPU/RAM
+- ดึงคำสั่งที่รอดำเนินการจาก `/api/agent/command` (เช่น `setPassword`)
+- ยืนยันคำสั่งที่ทำเสร็จผ่าน `/api/agent/confirm`
+- ส่ง screenshot ไปที่ `/api/agent/screenshot` (บันทึกเป็น `public/screenshots/{machineId}.jpg`)
 
-Admin can remotely randomize a machine's AnyDesk password via the Agents tab, which queues a `setPassword` command.
+Admin สามารถสั่งสุ่มรหัส AnyDesk ใหม่ผ่าน Agents tab ซึ่งจะเพิ่มคำสั่ง `setPassword` เข้าคิว
 
-### Authentication
+### การยืนยันตัวตน
 
-- **Customer sessions**: `localStorage` keys `vps_user` and `vps_logged_in`. Passwords stored and compared in plaintext in the user object.
-- **Admin session**: `sessionStorage` key `admin_authed`. Credentials validated against `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars.
+- **Session ลูกค้า**: ใช้ `localStorage` key `vps_user` และ `vps_logged_in` รหัสผ่านเก็บและเปรียบเทียบแบบ plaintext ใน user object
+- **Session Admin**: ใช้ `sessionStorage` key `admin_authed` ตรวจสอบกับ env var `ADMIN_USERNAME` / `ADMIN_PASSWORD`
 
-### UI Conventions
+### รูปแบบ UI
 
-- All page components are `'use client'` and live in single large files.
-- Bilingual support (Thai/English) via a `LANG` constant with a `LangPack` type — `lang` state toggles between `'th'` and `'en'`.
-- Dark/light theme toggled by `dark` boolean state. Dark = black marble + gold (`#D4AF37`), Light = white marble + pink.
-- Machine status flows: Admin status (`'active' | 'available' | 'stopped' | 'maintenance'`) maps to storefront status (`'active' | 'available' | 'stopped' | 'expired'`) in `machineToVPS()` in `app/page.tsx`.
-- Prices are in Thai Baht (฿), stored as integers on `Machine.priceWeekly` and `Machine.priceMonthly`.
+- ทุก page component เป็น `'use client'` และอยู่ในไฟล์ขนาดใหญ่ไฟล์เดียว
+- รองรับสองภาษา (ไทย/อังกฤษ) ผ่าน constant `LANG` ที่มี type `LangPack` — state `lang` สลับระหว่าง `'th'` กับ `'en'`
+- สลับธีมมืด/สว่างด้วย state `dark` ประเภท boolean — มืด = หินอ่อนดำ + ทอง (`#D4AF37`), สว่าง = หินอ่อนขาว + ชมพู
+- สถานะเครื่องฝั่ง Admin (`'active' | 'available' | 'stopped' | 'maintenance'`) ถูกแปลงเป็นสถานะหน้าร้าน (`'active' | 'available' | 'stopped' | 'expired'`) ผ่านฟังก์ชัน `machineToVPS()` ใน `app/page.tsx`
+- ราคาเป็นสกุลเงินบาท (฿) เก็บเป็น integer ใน `Machine.priceWeekly` และ `Machine.priceMonthly`
 
 ### PWA
 
-Configured via `next-pwa` in `next.config.ts` (currently just `turbopack: {}`). PWA manifest is at `public/manifest.json`. Icons `public/icon-192.png` and `public/icon-512.png` need to be generated (see `PWA_SETUP.md` and `scripts/generate-icons.html`).
+กำหนดค่าผ่าน `next-pwa` ใน `next.config.ts` (ปัจจุบันมีแค่ `turbopack: {}`) manifest อยู่ที่ `public/manifest.json` ไอคอน `public/icon-192.png` และ `public/icon-512.png` ยังต้องสร้าง (ดูรายละเอียดใน `PWA_SETUP.md` และ `scripts/generate-icons.html`)
