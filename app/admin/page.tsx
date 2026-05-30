@@ -31,6 +31,7 @@ interface MachineStats {
 
 interface User {
   id: string; username: string; email: string
+  password: string
   balance: number; totalSpent: number
   registeredAt: string; status: 'active' | 'banned'
   rentingMachine?: string
@@ -58,10 +59,10 @@ const INIT_MACHINES: Machine[] = [
 ]
 
 const INIT_USERS: User[] = [
-  { id: 'u1', username: 'somchai99', email: 'somchai@gmail.com', balance: 1200, totalSpent: 4800, registeredAt: '2026-03-10', status: 'active', rentingMachine: 'VPS-01' },
-  { id: 'u2', username: 'narin_x',   email: 'narin@hotmail.com', balance: 500,  totalSpent: 2800, registeredAt: '2026-04-01', status: 'active', rentingMachine: 'VPS-02' },
-  { id: 'u3', username: 'ploy2025',  email: 'ploy@gmail.com',    balance: 0,    totalSpent: 800,  registeredAt: '2026-05-15', status: 'active' },
-  { id: 'u4', username: 'teeray_r',  email: 'tee@gmail.com',     balance: 300,  totalSpent: 1600, registeredAt: '2026-04-20', status: 'banned' },
+  { id: 'u1', username: 'somchai99', email: 'somchai@gmail.com', password: 'pass1234', balance: 1200, totalSpent: 4800, registeredAt: '2026-03-10', status: 'active', rentingMachine: 'VPS-01' },
+  { id: 'u2', username: 'narin_x',   email: 'narin@hotmail.com', password: 'narin999', balance: 500,  totalSpent: 2800, registeredAt: '2026-04-01', status: 'active', rentingMachine: 'VPS-02' },
+  { id: 'u3', username: 'ploy2025',  email: 'ploy@gmail.com',    password: 'ploy2025', balance: 0,    totalSpent: 800,  registeredAt: '2026-05-15', status: 'active' },
+  { id: 'u4', username: 'teeray_r',  email: 'tee@gmail.com',     password: 'tee1234',  balance: 300,  totalSpent: 1600, registeredAt: '2026-04-20', status: 'banned' },
 ]
 
 const INIT_PAYMENTS: Payment[] = [
@@ -292,6 +293,27 @@ function AdminDashboard() {
     setUsers(us => us.map(u => u.id === id ? { ...u, balance: u.balance + amount } : u))
   }
 
+  function deleteUser(id: string) {
+    const user = users.find(u => u.id === id)
+    if (!user) return
+
+    // ยืนยันก่อนลบ
+    const confirmed = confirm(`ต้องการลบสมาชิก "${user.username}" จริงหรือไม่?\n\nข้อมูลจะหายถาวร!`)
+    if (!confirmed) return
+
+    // ลบออกจาก state
+    setUsers(us => us.filter(u => u.id !== id))
+
+    // ถ้ากำลังเช่าเครื่องอยู่ให้ปลดเครื่องด้วย
+    if (user.rentingMachine) {
+      setMachines(ms => ms.map(m =>
+        m.name === user.rentingMachine
+          ? { ...m, status: 'available' as MachineStatus, user: undefined, rentedAt: undefined, expiresAt: undefined }
+          : m
+      ))
+    }
+  }
+
   const onlineAgents = agents.filter(a => a.online).length
 
   const TABS: { key: AdminTab; label: string; icon: string; badge?: number }[] = [
@@ -372,7 +394,7 @@ function AdminDashboard() {
           />
         )}
         {tab === 'users' && (
-          <UsersTab users={users} onToggleBan={toggleUserBan} onAddBalance={addBalance} />
+          <UsersTab users={users} onToggleBan={toggleUserBan} onAddBalance={addBalance} onDeleteUser={deleteUser} />
         )}
         {tab === 'payments' && (
           <PaymentsTab payments={payments} onApprove={approvePayment} onReject={rejectPayment} />
@@ -741,10 +763,11 @@ function StatBar({ label, val, color }: { label: string; val: number; color: str
 }
 
 /* ─── USERS TAB ─── */
-function UsersTab({ users, onToggleBan, onAddBalance }: {
+function UsersTab({ users, onToggleBan, onAddBalance, onDeleteUser }: {
   users: User[]
   onToggleBan: (id: string) => void
   onAddBalance: (id: string, amount: number) => void
+  onDeleteUser: (id: string) => void
 }) {
   const [topupId,     setTopupId]     = useState<string | null>(null)
   const [topupAmount, setTopupAmount] = useState('')
@@ -765,7 +788,7 @@ function UsersTab({ users, onToggleBan, onAddBalance }: {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800/60">
-                {['สมาชิก', 'อีเมล', 'ยอดเงิน', 'ใช้ไปรวม', 'เครื่องที่เช่า', 'วันสมัคร', 'สถานะ', 'จัดการ'].map(h => (
+                {['สมาชิก', 'อีเมล', 'ยอดเงิน', 'ใช้ไปรวม', 'เครื่องที่เช่า', 'วันสมัคร', 'สถานะ', 'รหัสผ่าน', 'จัดการ'].map(h => (
                   <th key={h} className="text-left text-gray-500 text-xs font-bold px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -797,6 +820,14 @@ function UsersTab({ users, onToggleBan, onAddBalance }: {
                       {u.status === 'active' ? 'ปกติ' : 'บล็อก'}
                     </span>
                   </td>
+                  {/* คอลัมน์รหัสผ่าน */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs text-orange-400 bg-black/40 px-2 py-1 rounded font-mono">
+                        {u.password}
+                      </code>
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     {topupId === u.id ? (
                       <div className="flex gap-1 items-center">
@@ -819,6 +850,10 @@ function UsersTab({ users, onToggleBan, onAddBalance }: {
                               : 'bg-green-900/40 hover:bg-green-800/50 text-green-400 border-green-800/40'
                           }`}>
                           {u.status === 'active' ? 'บล็อก' : 'ปลดบล็อก'}
+                        </button>
+                        <button onClick={() => onDeleteUser(u.id)}
+                          className="bg-red-950/60 hover:bg-red-900/70 text-red-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-900/50 transition-colors">
+                          ลบ
                         </button>
                       </div>
                     )}
