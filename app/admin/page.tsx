@@ -930,21 +930,109 @@ function AgentTab({ agents, machines, onAddMachine }: {
       )}
 
       {/* วิธีติดตั้ง */}
-      <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4">
-        <h3 className="text-white font-bold text-sm mb-3">📦 วิธีติดตั้ง Agent บนเครื่องลูก</h3>
-        <div className="space-y-2 text-xs">
-          {[
-            { step: '1', text: 'คัดลอกไฟล์ agent/install.ps1 ไปวางบนเครื่องลูก' },
-            { step: '2', text: 'เปิด PowerShell แบบ Administrator' },
-            { step: '3', text: `รัน: powershell -ExecutionPolicy Bypass -File install.ps1 -ServerURL "http://[IP เซิร์ฟเวอร์]:3000" -Interval 5` },
-            { step: '4', text: 'เครื่องจะขึ้นในหน้านี้ภายใน 5 วินาที' },
-          ].map(s => (
-            <div key={s.step} className="flex items-start gap-3">
-              <span className="w-5 h-5 bg-red-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">{s.step}</span>
-              <span className="text-gray-400">{s.text}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* 1. ติดตั้งเครื่องแม่ */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center text-2xl shrink-0">
+              🖥️
             </div>
-          ))}
+            <div>
+              <h3 className="text-white font-black text-base">1. ติดตั้งเครื่องแม่</h3>
+              <p className="text-gray-500 text-xs">Server ที่รัน Next.js (เว็บนี้)</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 mb-4 text-xs">
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-blue-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">1</span>
+              <span className="text-gray-400">Clone โปรเจค: <code className="text-blue-400 bg-black/40 px-1.5 py-0.5 rounded">git clone [repo-url]</code></span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-blue-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">2</span>
+              <span className="text-gray-400">ติดตั้ง: <code className="text-blue-400 bg-black/40 px-1.5 py-0.5 rounded">npm install</code></span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-blue-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">3</span>
+              <span className="text-gray-400">รัน: <code className="text-blue-400 bg-black/40 px-1.5 py-0.5 rounded">npm run dev</code> หรือ <code className="text-blue-400 bg-black/40 px-1.5 py-0.5 rounded">npm run build && npm start</code></span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-blue-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">4</span>
+              <span className="text-gray-400">เข้าใช้งานที่: <code className="text-green-400 bg-black/40 px-1.5 py-0.5 rounded">http://[IP]:3000</code></span>
+            </div>
+          </div>
+
+          {/* ปุ่มดาวน์โหลด Server Setup */}
+          <div className="mb-3">
+            <a href="/server-setup.ps1" download
+               className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold rounded-xl transition-all active:scale-95 text-xs"
+               style={{ boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
+              <span className="text-lg">📥</span>
+              <span>ดาวน์โหลด server-setup.ps1</span>
+            </a>
+          </div>
+
+          <div className="bg-blue-950/30 border border-blue-900/40 rounded-xl p-3">
+            <div className="text-blue-400 text-[10px] font-bold mb-1">💡 สำหรับ Production</div>
+            <div className="text-gray-400 text-xs">ใช้ PM2 หรือ Deploy ไป Vercel/Railway/DigitalOcean</div>
+          </div>
         </div>
+
+        {/* 2. ติดตั้งเครื่องลูก */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-800 rounded-xl flex items-center justify-center text-2xl shrink-0">
+              💻
+            </div>
+            <div>
+              <h3 className="text-white font-black text-base">2. ติดตั้งเครื่องลูก</h3>
+              <p className="text-gray-500 text-xs">เครื่อง Windows ที่เอาไว้ให้เช่า</p>
+            </div>
+          </div>
+
+          {/* ปุ่มดาวน์โหลด */}
+          <div className="mb-4">
+            <a href="/agent/install.ps1" download
+               className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white font-bold rounded-xl transition-all active:scale-95"
+               style={{ boxShadow: '0 4px 12px rgba(234,88,12,0.4)' }}>
+              <span className="text-xl">📥</span>
+              <span>ดาวน์โหลด install.ps1</span>
+            </a>
+          </div>
+
+          <div className="space-y-3 mb-4 text-xs">
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-orange-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">1</span>
+              <span className="text-gray-400">คลิกปุ่มด้านบนเพื่อดาวน์โหลด <code className="text-orange-400 bg-black/40 px-1.5 py-0.5 rounded">install.ps1</code></span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-orange-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">2</span>
+              <span className="text-gray-400">เปิด PowerShell แบบ <strong className="text-orange-400">Administrator</strong></span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-orange-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">3</span>
+              <div className="text-gray-400 flex-1">
+                <div className="mb-1">รันคำสั่ง:</div>
+                <code className="block text-orange-400 bg-black/60 px-2 py-1.5 rounded text-[10px] overflow-x-auto">
+                  Set-ExecutionPolicy Bypass -Scope Process -Force; cd Downloads; .\install.ps1
+                </code>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="w-5 h-5 bg-orange-700 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 mt-0.5">4</span>
+              <span className="text-gray-400">เครื่องจะปรากฏในตารางด้านบนภายใน <strong className="text-green-400">5 วินาที</strong></span>
+            </div>
+          </div>
+
+          <div className="bg-orange-950/30 border border-orange-900/40 rounded-xl p-3">
+            <div className="text-orange-400 text-[10px] font-bold mb-1">📖 คู่มือฉบับเต็ม</div>
+            <a href="/INSTALL_GUIDE.md" target="_blank" className="text-blue-400 hover:text-blue-300 text-xs underline">
+              เปิดคู่มือติดตั้งแบบละเอียด →
+            </a>
+          </div>
+        </div>
+
       </div>
     </div>
   )
