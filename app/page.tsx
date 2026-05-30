@@ -3,7 +3,7 @@
 // NNVPS — สไตล์ร้านเกมอัตโนมัติ
 import { useState, useEffect } from 'react'
 import type { ReactElement } from 'react'
-import { INIT_MACHINES, type Machine } from '@/lib/data'
+import { INIT_MACHINES, INIT_USERS, type Machine } from '@/lib/data'
 
 /* ─── TYPES ─── */
 type ServerStatus = 'active' | 'stopped' | 'expired' | 'available'
@@ -121,13 +121,6 @@ const STATUS_CFG: Record<ServerStatus, { dot: string; badge: string; badgeBg: st
   stopped:   { dot: 'bg-gray-500',   badge: 'text-gray-500',   badgeBg: 'bg-gray-500/10   border-gray-600/30'   },
 }
 
-const DEFAULT_SPEC = {
-  specCPU: 'Dual Xeon E5-2686 V4 36/72',
-  specGPU: 'RTX 3060 12GB',
-  specRAM: '128 GB',
-  specSSD: '1TB NVMe',
-}
-
 // ฟังก์ชันคำนวณเวลาที่เหลือ (แบบละเอียดพร้อมวินาที)
 function formatTimeRemaining(expiresAt: number, lang: Lang): string {
   const now = Date.now()
@@ -216,8 +209,13 @@ const INITIAL_SERVERS: VPSServer[] = INIT_MACHINES.map(machineToVPS)
 export default function NNVPSPage() {
 
   const [servers]                         = useState<VPSServer[]>(INITIAL_SERVERS)
-  const [balance,         setBalance]     = useState(2_500)
   const [loggedIn,        setLoggedIn]    = useState(false)
+  const [currentUser,     setCurrentUser] = useState<string>('') // เก็บ username ของคนที่ล็อกอิน
+  const [users,           setUsers]       = useState(INIT_USERS) // เก็บข้อมูล users ทั้งหมด
+
+  // ดึงข้อมูล balance จาก user ที่ login อยู่
+  const currentUserData = users.find(u => u.username === currentUser)
+  const balance = currentUserData?.balance || 0
   const [loginTab,        setLoginTab]    = useState<LoginTab>('login')
   const [username,        setUsername]    = useState('')
   const [email,           setEmail]       = useState('')
@@ -244,7 +242,7 @@ export default function NNVPSPage() {
   const availableCount = servers.filter(s => s.status === 'available').length
   const busyCount      = servers.filter(s => s.status === 'active' || s.status === 'expired').length
   const closedCount    = servers.filter(s => s.status === 'stopped').length
-  const totalUsers     = 1234 // จำนวนผู้ใช้ทั้งหมด (ตัวอย่าง)
+  const totalUsers     = users.length // จำนวนผู้ใช้ทั้งหมดจากข้อมูลจริง
 
   // กรองเครื่องตาม filter tab
   const filtered = servers.filter(s => {
@@ -255,15 +253,29 @@ export default function NNVPSPage() {
 
   function handleLogin() {
     if (!username.trim()) return
-    setLoggedIn(true)
-    setRightPanel('login')
+    // ตรวจสอบว่ามี user นี้อยู่จริงหรือไม่
+    const user = users.find(u => u.username === username && u.password === password)
+    if (user) {
+      setCurrentUser(username)
+      setLoggedIn(true)
+      setRightPanel('login')
+    } else {
+      alert('ยูสเซอร์เนมหรือรหัสผ่านไม่ถูกต้อง')
+    }
   }
 
   function confirmPayment() {
-    if (!selectedPrice) return
+    if (!selectedPrice || !currentUser) return
     setConfirming(true)
     setTimeout(() => {
-      setBalance(b => b + selectedPrice)
+      // อัปเดต balance ของ user ที่ล็อกอินอยู่
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.username === currentUser
+            ? { ...u, balance: u.balance + selectedPrice }
+            : u
+        )
+      )
       setPaymentDone(true)
       setConfirming(false)
     }, 2_000)
