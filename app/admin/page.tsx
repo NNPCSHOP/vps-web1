@@ -94,7 +94,8 @@ const BLANK_FORM = (): Omit<Machine, 'id'> => ({
 /* ─── ADMIN LOGIN ─── */
 export default function AdminPage() {
   const [authed,     setAuthed]    = useState(false)
-  const [passInput,  setPassInput] = useState('')
+  const [username,   setUsername]  = useState('')
+  const [password,   setPassword]  = useState('')
   const [passErr,    setPassErr]   = useState(false)
 
   async function handleLogin() {
@@ -103,7 +104,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credentials: passInput })
+        body: JSON.stringify({ username, password })
       })
       const data = await res.json()
 
@@ -133,16 +134,34 @@ export default function AdminPage() {
           <div className="text-gray-500 text-sm mt-1">NNVPS · ระบบหลังบ้าน</div>
         </div>
         <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6">
-          <label className="text-gray-400 text-xs font-bold block mb-2">ยูสเซอร์เนม:รหัสผ่าน</label>
-          <input
-            type="password" value={passInput}
-            onChange={e => setPassInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            placeholder="username:password"
-            className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors mb-4 ${
-              passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
-            }`}
-          />
+          {/* Username */}
+          <div className="mb-4">
+            <label className="text-gray-400 text-xs font-bold block mb-2">👤 ยูสเซอร์เนม</label>
+            <input
+              type="text" value={username}
+              onChange={e => setUsername(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="username"
+              className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors ${
+                passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
+              }`}
+            />
+          </div>
+
+          {/* Password */}
+          <div className="mb-4">
+            <label className="text-gray-400 text-xs font-bold block mb-2">🔒 รหัสผ่าน</label>
+            <input
+              type="password" value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="password"
+              className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors ${
+                passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
+              }`}
+            />
+          </div>
+
           {passErr && <p className="text-red-400 text-xs text-center mb-3">ข้อมูลไม่ถูกต้อง</p>}
           <button onClick={handleLogin}
             className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all"

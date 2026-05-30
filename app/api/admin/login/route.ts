@@ -6,15 +6,14 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(req: NextRequest) {
   try {
-    const { credentials } = await req.json()
+    const { username, password } = await req.json()
 
     // ดึงข้อมูลจาก Environment Variables
     const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin'
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234'
-    const correctCredentials = `${ADMIN_USERNAME}:${ADMIN_PASSWORD}`
 
     // ตรวจสอบ
-    if (credentials === correctCredentials) {
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       return NextResponse.json({
         success: true,
         message: 'เข้าสู่ระบบสำเร็จ'
