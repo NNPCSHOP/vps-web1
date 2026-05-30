@@ -40,6 +40,7 @@ export const INIT_MACHINES: Machine[] = [
   { id: 'm2', name: 'VPS-02', status: 'active',   user: 'narin_x',   ip: '192.168.1.151', mac: '', anydeskId: '234 819 052', sshPort: 22, sshUser: 'admin', sshPass: '', priceWeekly: 800, priceMonthly: 2800, rentedAt: '2026-05-26', expiresAt: '2026-06-03', ...DEFAULT_SPEC },
   { id: 'm3', name: 'VPS-03', status: 'available',                   ip: '192.168.1.152', mac: '', anydeskId: '398 047 261', sshPort: 22, sshUser: 'admin', sshPass: '', priceWeekly: 800, priceMonthly: 2800, ...DEFAULT_SPEC },
   { id: 'm4', name: 'VPS-04', status: 'stopped',                     ip: '192.168.1.153', mac: '', anydeskId: '471 203 885', sshPort: 22, sshUser: 'admin', sshPass: '', priceWeekly: 800, priceMonthly: 2800, ...DEFAULT_SPEC },
+  { id: 'm5', name: 'PC',     status: 'available',                   ip: '192.168.2.1',   mac: '', anydeskId: '999 888 777', sshPort: 22, sshUser: 'admin', sshPass: '', priceWeekly: 800, priceMonthly: 2800, ...DEFAULT_SPEC },
 ]
 
 // ข้อมูลผู้ใช้
