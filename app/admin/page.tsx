@@ -98,7 +98,9 @@ export default function AdminPage() {
   const [passErr,    setPassErr]   = useState(false)
 
   function handleLogin() {
-    if (passInput === 'admin1234') { setAuthed(true) }
+    // ตรวจสอบ username และ password
+    // Format: username:password
+    if (passInput === 'NO02072536:n02071993') { setAuthed(true) }
     else { setPassErr(true); setTimeout(() => setPassErr(false), 1500) }
   }
 
@@ -114,17 +116,17 @@ export default function AdminPage() {
           <div className="text-gray-500 text-sm mt-1">NNVPS · ระบบหลังบ้าน</div>
         </div>
         <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-6">
-          <label className="text-gray-400 text-xs font-bold block mb-2">รหัสผ่านผู้ดูแล</label>
+          <label className="text-gray-400 text-xs font-bold block mb-2">ยูสเซอร์เนม:รหัสผ่าน</label>
           <input
-            type="password" value={passInput}
+            type="text" value={passInput}
             onChange={e => setPassInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            placeholder="กรอกรหัสผ่าน"
+            placeholder="NO02072536:n02071993"
             className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors mb-4 ${
               passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
             }`}
           />
-          {passErr && <p className="text-red-400 text-xs text-center mb-3">รหัสผ่านไม่ถูกต้อง</p>}
+          {passErr && <p className="text-red-400 text-xs text-center mb-3">ข้อมูลไม่ถูกต้อง</p>}
           <button onClick={handleLogin}
             className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all"
             style={{ boxShadow: '0 0 16px rgba(220,38,38,0.35)' }}>
