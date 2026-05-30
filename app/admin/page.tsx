@@ -35,6 +35,13 @@ const P_STATUS: Record<PayStatus, { label: string; color: string; bg: string }> 
   rejected: { label: 'ปฏิเสธ', color: 'text-red-400',    bg: 'bg-red-400/15    border-red-700/30'    },
 }
 
+const DEFAULT_SPEC = {
+  specCPU: 'Dual Xeon E5-2686 V4 36/72',
+  specGPU: 'RTX 3060 12GB',
+  specRAM: '128 GB',
+  specSSD: '1TB NVMe',
+}
+
 /* ─── BLANK FORM ─── */
 const BLANK_FORM = (): Omit<Machine, 'id'> => ({
   name: '', ip: '', mac: '', sshPort: 22, sshUser: 'root', sshPass: '',
