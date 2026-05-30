@@ -3,6 +3,7 @@
 // NNVPS — สไตล์ร้านเกมอัตโนมัติ
 import { useState, useEffect } from 'react'
 import type { ReactElement } from 'react'
+import { INIT_MACHINES, type Machine } from '@/lib/data'
 
 /* ─── TYPES ─── */
 type ServerStatus = 'active' | 'stopped' | 'expired' | 'available'
@@ -181,18 +182,35 @@ function CountdownTimerInline({ expiresAt, lang, timeLabel }: { expiresAt: numbe
   )
 }
 
-const INITIAL_SERVERS: VPSServer[] = [
-  { id: 'vps-01', name: 'VPS-01', status: 'active', ip: '192.168.1.150',
-    expiresAt: Date.now() + (20 * 60 * 60 * 1000 + 2 * 60 * 1000), // 20 ชม. 2 นาที จากตอนนี้
-    priceWeekly: 800, priceMonthly: 2800, anydeskId: '112 536 741', ...DEFAULT_SPEC },
-  { id: 'vps-02', name: 'VPS-02', status: 'active',
-    expiresAt: Date.now() + (1 * 60 * 60 * 1000 + 45 * 60 * 1000), // 1 ชม. 45 นาที จากตอนนี้
-    priceWeekly: 800, priceMonthly: 2800, anydeskId: '234 819 052', ...DEFAULT_SPEC },
-  { id: 'vps-03', name: 'VPS-03', status: 'available',
-    priceWeekly: 800, priceMonthly: 2800, anydeskId: '398 047 261', ...DEFAULT_SPEC },
-  { id: 'vps-04', name: 'VPS-04', status: 'stopped',
-    priceWeekly: 800, priceMonthly: 2800, anydeskId: '471 203 885', ...DEFAULT_SPEC },
-]
+// แปลงข้อมูลจาก Admin (INIT_MACHINES) มาเป็นรูปแบบหน้าร้าน
+function machineToVPS(m: Machine): VPSServer {
+  // แปลง status จาก Admin เป็น status หน้าร้าน
+  let status: ServerStatus = 'available'
+  if (m.status === 'active') status = 'active'
+  else if (m.status === 'stopped') status = 'stopped'
+  else if (m.status === 'maintenance') status = 'stopped'
+  else status = 'available'
+
+  // คำนวณ expiresAt จาก string เป็น timestamp
+  const expiresAt = m.expiresAt ? new Date(m.expiresAt).getTime() : undefined
+
+  return {
+    id: m.id,
+    name: m.name,
+    status,
+    ip: m.ip,
+    expiresAt,
+    priceWeekly: m.priceWeekly,
+    priceMonthly: m.priceMonthly,
+    specCPU: m.specCPU,
+    specGPU: m.specGPU,
+    specRAM: m.specRAM,
+    specSSD: m.specSSD,
+    anydeskId: m.anydeskId
+  }
+}
+
+const INITIAL_SERVERS: VPSServer[] = INIT_MACHINES.map(machineToVPS)
 
 /* ─── PAGE COMPONENT ─── */
 export default function NNVPSPage() {
