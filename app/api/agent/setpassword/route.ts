@@ -1,6 +1,6 @@
 // Admin สั่งเปลี่ยน AnyDesk password ของเครื่องลูก
 import { NextRequest, NextResponse } from 'next/server'
-import { agentStore } from '@/lib/agentStore'
+import { store, commandStore } from '@/lib/store'
 
 // สร้างรหัส 8 ตัวแบบสุ่ม
 function randomPassword(): string {
@@ -9,10 +9,32 @@ function randomPassword(): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { machineId, password } = await req.json()
-  if (!machineId) return NextResponse.json({ error: 'ต้องมี machineId' }, { status: 400 })
+  try {
+    const { machineId, password } = await req.json()
+    if (!machineId) return NextResponse.json({ error: 'ต้องมี machineId' }, { status: 400 })
 
-  const newPass = password?.trim() || randomPassword()
-  const cmd     = agentStore.addCommand(machineId, 'setPassword', newPass)
-  return NextResponse.json({ success: true, commandId: cmd.id, password: newPass })
+    const newPass = password?.trim() || randomPassword()
+
+    // อัพเดทรหัสในฐานข้อมูล
+    const machines = store.getMachines()
+    const machine = machines.find(m => m.id === machineId)
+    if (!machine) {
+      return NextResponse.json({ error: 'ไม่พบเครื่องนี้' }, { status: 404 })
+    }
+
+    // บันทึกรหัสใหม่
+    store.updateMachine(machineId, { anydeskPass: newPass })
+
+    // ส่งคำสั่งไปยัง Agent
+    const cmd = commandStore.addCommand(machineId, 'setPassword', newPass)
+
+    return NextResponse.json({
+      success: true,
+      password: newPass,
+      commandId: cmd.id,
+      message: 'ส่งคำสั่งไปยังเครื่องแล้ว'
+    })
+  } catch (error) {
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาด' }, { status: 500 })
+  }
 }

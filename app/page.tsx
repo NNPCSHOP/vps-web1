@@ -3,7 +3,7 @@
 // NNVPS — สไตล์ร้านเกมอัตโนมัติ
 import { useState, useEffect } from 'react'
 import type { ReactElement } from 'react'
-import { INIT_MACHINES, INIT_USERS, type Machine } from '@/lib/data'
+import { INIT_MACHINES, INIT_USERS, type Machine, type User } from '@/lib/data'
 
 /* ─── TYPES ─── */
 type ServerStatus = 'active' | 'stopped' | 'expired' | 'available'
@@ -15,6 +15,7 @@ interface VPSServer {
   id: string
   name: string
   status: ServerStatus
+  user?: string
   ip?: string
   expiresAt?: number // timestamp เวลาหมดอายุ (milliseconds)
   priceWeekly: number
@@ -24,13 +25,14 @@ interface VPSServer {
   specRAM: string
   specSSD: string
   anydeskId?: string
+  anydeskPass?: string
 }
 
 /* ─── TRANSLATIONS ─── */
 type LangPack = {
   shopType: string; shopTagline: string
   statAvailable: string; statBusy: string; statClosed: string; statUsers: string; machineUnit: string
-  filterAll: string; filterAvailable: string; filterBusy: string
+  filterAll: string; filterAvailable: string; filterBusy: string; filterMine: string
   sectionTitle: string; sectionSub: (n: number) => string
   statusLabels: Record<ServerStatus, string>
   timeLabel: string
@@ -57,7 +59,7 @@ const LANG: Record<Lang, LangPack> = {
   th: {
     shopType: '🖥 ร้านเช่าคอมฟาร์มอัตโนมัติ', shopTagline: 'สเปกแรงๆ ราคาสบายกระเป๋า',
     statAvailable: 'ว่าง', statBusy: 'ไม่ว่าง', statClosed: 'ปิด', statUsers: 'ยูส', machineUnit: 'เครื่อง',
-    filterAll: 'ทั้งหมด', filterAvailable: 'ว่าง', filterBusy: 'ไม่ว่าง',
+    filterAll: 'ทั้งหมด', filterAvailable: 'ว่าง', filterBusy: 'ไม่ว่าง', filterMine: 'เครื่องของฉัน',
     sectionTitle: 'เครื่องในร้าน', sectionSub: (n) => `${n} เครื่อง · เครื่องคอมฟาร์มจริง`,
     statusLabels: { active: 'ไม่ว่าง', stopped: 'ปิด', expired: 'ไม่ว่าง', available: 'ว่าง' },
     timeLabel: 'เหลืออีก',
@@ -84,7 +86,7 @@ const LANG: Record<Lang, LangPack> = {
   en: {
     shopType: '🖥 Auto Farm Rental', shopTagline: 'High Specs · Affordable Prices',
     statAvailable: 'Available', statBusy: 'In Use', statClosed: 'Closed', statUsers: 'Users', machineUnit: 'Units',
-    filterAll: 'All', filterAvailable: 'Available', filterBusy: 'In Use',
+    filterAll: 'All', filterAvailable: 'Available', filterBusy: 'In Use', filterMine: 'My Machines',
     sectionTitle: 'Machines', sectionSub: (n) => `${n} units · Real farm machines`,
     statusLabels: { active: 'In Use', stopped: 'Closed', expired: 'In Use', available: 'Available' },
     timeLabel: 'Remaining',
@@ -191,6 +193,7 @@ function machineToVPS(m: Machine): VPSServer {
     id: m.id,
     name: m.name,
     status,
+    user: m.user,
     ip: m.ip,
     expiresAt,
     priceWeekly: m.priceWeekly,
@@ -199,19 +202,73 @@ function machineToVPS(m: Machine): VPSServer {
     specGPU: m.specGPU,
     specRAM: m.specRAM,
     specSSD: m.specSSD,
-    anydeskId: m.anydeskId
+    anydeskId: m.anydeskId,
+    anydeskPass: m.anydeskPass
   }
 }
-
-const INITIAL_SERVERS: VPSServer[] = INIT_MACHINES.map(machineToVPS)
 
 /* ─── PAGE COMPONENT ─── */
 export default function NNVPSPage() {
 
-  const [servers]                         = useState<VPSServer[]>(INITIAL_SERVERS)
+  const [servers,         setServers]     = useState<VPSServer[]>([])
   const [loggedIn,        setLoggedIn]    = useState(false)
   const [currentUser,     setCurrentUser] = useState<string>('') // เก็บ username ของคนที่ล็อกอิน
   const [users,           setUsers]       = useState(INIT_USERS) // เก็บข้อมูล users ทั้งหมด
+
+  // เช็ค session เมื่อโหลดหน้าครั้งแรก (ใช้ localStorage เพื่อให้อยู่ถาวร)
+  useEffect(() => {
+    const savedUser = localStorage.getItem('vps_user')
+    const savedLoggedIn = localStorage.getItem('vps_logged_in')
+
+    if (savedUser && savedLoggedIn === 'true') {
+      setCurrentUser(savedUser)
+      setLoggedIn(true)
+    }
+  }, [])
+
+  // โหลดข้อมูลเครื่องจาก API เมื่อเปิดหน้า
+  useEffect(() => {
+    async function loadMachines() {
+      try {
+        const res = await fetch('/api/machines')
+        const data = await res.json()
+        if (data.machines) {
+          const vpsServers = data.machines.map(machineToVPS)
+          setServers(vpsServers)
+        }
+      } catch (error) {
+        console.error('โหลดข้อมูลเครื่องล้มเหลว:', error)
+        // ใช้ข้อมูลเริ่มต้นถ้าโหลดไม่ได้
+        setServers(INIT_MACHINES.map(machineToVPS))
+      }
+    }
+    loadMachines()
+
+    // รีเฟรชข้อมูลทุก 10 วินาที
+    const interval = setInterval(loadMachines, 10_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // โหลดข้อมูลผู้ใช้จาก API เมื่อเปิดหน้า
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users')
+        const data = await res.json()
+        if (data.users) {
+          setUsers(data.users)
+        }
+      } catch (error) {
+        console.error('โหลดข้อมูลผู้ใช้ล้มเหลว:', error)
+        setUsers(INIT_USERS)
+      }
+    }
+    loadUsers()
+
+    // รีเฟรชข้อมูลผู้ใช้ทุก 10 วินาที
+    const interval = setInterval(loadUsers, 10_000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ดึงข้อมูล balance จาก user ที่ login อยู่
   const currentUserData = users.find(u => u.username === currentUser)
@@ -224,7 +281,7 @@ export default function NNVPSPage() {
   const [showPass,        setShowPass]    = useState(false)
   const [showConfirmPass, setShowConfirmPass] = useState(false)
   const [rightPanel,      setRightPanel]  = useState<RightPanel>('login')
-  const [filter,          setFilter]      = useState<'all'|'available'|'busy'>('all')
+  const [filter,          setFilter]      = useState<'all'|'available'|'busy'|'mine'>('all')
   const [lang,            setLang]        = useState<Lang>('th')
   const [selectedPrice,   setSelectedPrice] = useState<number | null>(null)
   const [showQR,          setShowQR]      = useState(false)
@@ -248,37 +305,126 @@ export default function NNVPSPage() {
   const filtered = servers.filter(s => {
     if (filter === 'available') return s.status === 'available'
     if (filter === 'busy')      return s.status === 'active' || s.status === 'expired'
+    if (filter === 'mine')      return currentUserData?.rentingMachine === s.name
     return true
   })
 
-  function handleLogin() {
+  async function handleLogin() {
     if (!username.trim()) return
-    // ตรวจสอบว่ามี user นี้อยู่จริงหรือไม่
-    const user = users.find(u => u.username === username && u.password === password)
-    if (user) {
-      setCurrentUser(username)
-      setLoggedIn(true)
-      setRightPanel('login')
+
+    // ถ้าเป็นโหมดสมัครสมาชิก
+    if (loginTab === 'register') {
+      // ตรวจสอบข้อมูล
+      if (!email.trim()) {
+        alert('กรุณากรอก Email')
+        return
+      }
+      if (password !== confirmPass) {
+        alert('รหัสผ่านไม่ตรงกัน')
+        return
+      }
+      if (password.length < 6) {
+        alert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')
+        return
+      }
+
+      // สมัครสมาชิกผ่าน API
+      try {
+        const newUser = {
+          id: `u${Date.now()}`,
+          username: username.trim(),
+          email: email.trim(),
+          password,
+          balance: 0,
+          totalSpent: 0,
+          registeredAt: new Date().toISOString().split('T')[0],
+          status: 'active' as const
+        }
+
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newUser)
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          // อัพเดทรายการผู้ใช้
+          if (data.users) setUsers(data.users)
+
+          // เข้าสู่ระบบทันที
+          const user = username.trim()
+          setCurrentUser(user)
+          setLoggedIn(true)
+          setRightPanel('login')
+
+          // บันทึก session (ใช้ localStorage เพื่อให้อยู่ถาวร)
+          localStorage.setItem('vps_user', user)
+          localStorage.setItem('vps_logged_in', 'true')
+
+          // ล้างฟอร์ม
+          setUsername('')
+          setEmail('')
+          setPassword('')
+          setConfirmPass('')
+          setLoginTab('login')
+
+          alert('สมัครสมาชิกสำเร็จ!')
+        } else {
+          alert(data.message || 'สมัครสมาชิกล้มเหลว')
+        }
+      } catch (error) {
+        console.error('สมัครสมาชิกล้มเหลว:', error)
+        alert('เกิดข้อผิดพลาดในการสมัครสมาชิก')
+      }
     } else {
-      alert('ยูสเซอร์เนมหรือรหัสผ่านไม่ถูกต้อง')
+      // โหมดเข้าสู่ระบบ
+      const user = users.find(u => u.username === username && u.password === password)
+      if (user) {
+        setCurrentUser(username)
+        setLoggedIn(true)
+        setRightPanel('login')
+
+        // บันทึก session (ใช้ localStorage เพื่อให้อยู่ถาวร)
+        localStorage.setItem('vps_user', username)
+        localStorage.setItem('vps_logged_in', 'true')
+      } else {
+        alert('ยูสเซอร์เนมหรือรหัสผ่านไม่ถูกต้อง')
+      }
     }
   }
 
-  function confirmPayment() {
+  async function confirmPayment() {
     if (!selectedPrice || !currentUser) return
     setConfirming(true)
-    setTimeout(() => {
-      // อัปเดต balance ของ user ที่ล็อกอินอยู่
-      setUsers(prevUsers =>
-        prevUsers.map(u =>
-          u.username === currentUser
-            ? { ...u, balance: u.balance + selectedPrice }
-            : u
-        )
-      )
-      setPaymentDone(true)
-      setConfirming(false)
-    }, 2_000)
+
+    // จำลองการรอ 2 วินาที
+    await new Promise(resolve => setTimeout(resolve, 2_000))
+
+    // อัพเดต balance ผ่าน API
+    const user = users.find(u => u.username === currentUser)
+    if (user) {
+      try {
+        const res = await fetch(`/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ balance: user.balance + selectedPrice })
+        })
+        const data = await res.json()
+
+        if (data.success && data.users) {
+          setUsers(data.users)
+          setPaymentDone(true)
+        } else {
+          alert('เติมเงินล้มเหลว')
+        }
+      } catch (error) {
+        console.error('เติมเงินล้มเหลว:', error)
+        alert('เกิดข้อผิดพลาดในการเติมเงิน')
+      }
+    }
+
+    setConfirming(false)
   }
 
   function closeModal() {
@@ -425,12 +571,68 @@ export default function NNVPSPage() {
                 t={t}
                 balance={balance}
                 username={username}
+                userData={currentUserData}
                 rightPanel={rightPanel}
                 setRightPanel={setRightPanel}
                 selectedPrice={selectedPrice}
                 setSelectedPrice={setSelectedPrice}
                 setShowQR={setShowQR}
-                onLogout={() => { setLoggedIn(false); setUsername(''); setPassword(''); setShowPanel(false) }}
+                onCancelRental={async () => {
+                  if (!currentUserData?.rentingMachine) return
+
+                  const confirmed = confirm(`ยกเลิกการเช่า ${currentUserData.rentingMachine}?\n\n⚠️ เงินจะไม่ถูกคืน`)
+                  if (!confirmed) return
+
+                  try {
+                    // หาเครื่องที่เช่าอยู่
+                    const machines = await fetch('/api/machines').then(r => r.json())
+                    const machine = machines.machines.find((m: Machine) => m.name === currentUserData.rentingMachine)
+
+                    if (machine) {
+                      // คืนเครื่อง
+                      await fetch(`/api/machines/${machine.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          status: 'available',
+                          user: undefined,
+                          rentedAt: undefined,
+                          expiresAt: undefined
+                        })
+                      })
+                    }
+
+                    // อัพเดทผู้ใช้
+                    await fetch(`/api/users/${currentUserData.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        rentingMachine: undefined
+                      })
+                    })
+
+                    // รีโหลดข้อมูล
+                    const newMachines = await fetch('/api/machines').then(r => r.json())
+                    const newUsers = await fetch('/api/users').then(r => r.json())
+
+                    if (newMachines.machines) setServers(newMachines.machines.map(machineToVPS))
+                    if (newUsers.users) setUsers(newUsers.users)
+
+                    alert('✅ ยกเลิกการเช่าสำเร็จ')
+                  } catch (error) {
+                    alert('❌ เกิดข้อผิดพลาด')
+                  }
+                }}
+                onLogout={() => {
+                  setLoggedIn(false)
+                  setCurrentUser('')
+                  setUsername('')
+                  setPassword('')
+                  setShowPanel(false)
+                  // ลบ session
+                  localStorage.removeItem('vps_user')
+                  localStorage.removeItem('vps_logged_in')
+                }}
               />
             ) : (
               <LoginPanel
@@ -480,6 +682,7 @@ export default function NNVPSPage() {
               ? [
                   { key: 'available', label: t.filterAvailable },
                   { key: 'busy',      label: t.filterBusy      },
+                  { key: 'mine',      label: t.filterMine      },
                 ]
               : [
                   { key: 'all',       label: t.filterAll       },
@@ -509,6 +712,7 @@ export default function NNVPSPage() {
               lang={lang}
               t={t}
               dark={dark}
+              currentUser={currentUser}
               onRent={() => {
                 if (!loggedIn) { setShowPanel(true); return }
                 // สร้าง Order ID และรหัสผ่านอัตโนมัติ
@@ -655,11 +859,21 @@ export default function NNVPSPage() {
       {/* ══════════════════════════════════════════════
           RENTAL INFO MODAL
       ══════════════════════════════════════════════ */}
-      {rentalInfo && (
+      {rentalInfo && currentUserData && (
         <RentalInfoModal
           server={rentalInfo.server}
           orderId={rentalInfo.orderId}
           pass={rentalInfo.pass}
+          user={currentUserData}
+          onRented={() => {
+            // รีโหลดข้อมูลเครื่องและผู้ใช้
+            fetch('/api/machines').then(r => r.json()).then(d => {
+              if (d.machines) setServers(d.machines.map(machineToVPS))
+            })
+            fetch('/api/users').then(r => r.json()).then(d => {
+              if (d.users) setUsers(d.users)
+            })
+          }}
           onClose={() => setRentalInfo(null)}
           dark={dark}
         />
@@ -872,10 +1086,13 @@ function DarkMarbleBackground() {
 }
 
 /* ─── PC CARD ─── */
-function PCCard({ server, lang, t, dark, onRent }: {
+function PCCard({ server, lang, t, dark, currentUser, onRent }: {
   server: VPSServer; lang: Lang; t: LangPack; dark: boolean
+  currentUser: string
   onRent: () => void
 }) {
+  const [showPass, setShowPass] = useState(false)
+
   const cfg        = STATUS_CFG[server.status]
   const isAvailable = server.status === 'available'
   const isStopped   = server.status === 'stopped'
@@ -953,6 +1170,41 @@ function PCCard({ server, lang, t, dark, onRent }: {
             <span>{s.icon}</span> <span style={{ color: specColor }}>{s.val}</span>
           </div>
         ))}
+
+        {/* AnyDesk ID + Password (เฉพาะเครื่องที่ตัวเองเช่า) */}
+        {server.anydeskId && server.user === currentUser && (
+          <>
+            {/* AnyDesk ID - แสดงตลอดเวลา */}
+            <div className="flex items-center gap-2 text-xs pt-1 border-t border-gray-800/30">
+              <div className="flex items-center gap-1.5" style={{ color: subColor }}>
+                <span>🖥</span>
+                <span className="font-bold" style={{ color: '#F5C842' }}>{server.anydeskId}</span>
+              </div>
+            </div>
+
+            {/* รหัสผ่าน AnyDesk - มีปุ่มเปิด/ปิด */}
+            {server.anydeskPass && (
+              <div className="flex items-center justify-between gap-2 text-xs pt-1">
+                <div className="flex items-center gap-1.5" style={{ color: subColor }}>
+                  <span>🔒</span>
+                  <span style={{ color: specColor, fontFamily: 'monospace' }}>
+                    {showPass ? server.anydeskPass : '••••••'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowPass(!showPass)}
+                  className="text-[9px] px-2 py-0.5 rounded-md transition-colors"
+                  style={{
+                    background: dark ? 'rgba(212,175,55,0.1)' : 'rgba(212,175,55,0.15)',
+                    color: dark ? '#9A7B2A' : '#7a5800'
+                  }}
+                >
+                  {showPass ? '🙈' : '👁'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* ราคา + ปุ่ม */}
@@ -1208,14 +1460,16 @@ function LoginPanel({ t, loginTab, setLoginTab, username, setUsername,
         </div>
       </div>
 
-      <p className="text-green-400 text-[10px] text-center mb-3">พร้อมแล้ว — กดเข้าสู่ระบบได้</p>
+      <p className="text-green-400 text-[10px] text-center mb-3">
+        {loginTab === 'register' ? 'พร้อมแล้ว — กดสมัครสมาชิกได้' : 'พร้อมแล้ว — กดเข้าสู่ระบบได้'}
+      </p>
 
       <button
         onClick={onLogin}
         className="w-full py-3 bg-red-600 hover:bg-red-500 active:scale-[0.98] text-white font-bold rounded-xl transition-all mb-3 text-sm"
         style={{ boxShadow: '0 0 20px rgba(220,38,38,0.35)' }}
       >
-        {t.btnLogin}
+        {loginTab === 'register' ? '🎉 สมัครสมาชิก' : t.btnLogin}
       </button>
 
     </div>
@@ -1223,12 +1477,15 @@ function LoginPanel({ t, loginTab, setLoginTab, username, setUsername,
 }
 
 /* ─── USER PANEL (logged in) ─── */
-function UserPanel({ t, balance, username, rightPanel, setRightPanel,
-  selectedPrice, setSelectedPrice, setShowQR, onLogout }: {
+function UserPanel({ t, balance, username, userData, rightPanel, setRightPanel,
+  selectedPrice, setSelectedPrice, setShowQR, onCancelRental, onLogout }: {
   t: LangPack; balance: number; username: string
+  userData?: User
   rightPanel: RightPanel; setRightPanel: (v: RightPanel) => void
   selectedPrice: number | null; setSelectedPrice: (v: number | null) => void
-  setShowQR: (v: boolean) => void; onLogout: () => void
+  setShowQR: (v: boolean) => void
+  onCancelRental: () => void
+  onLogout: () => void
 }) {
   return (
     <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5 space-y-4"
@@ -1247,6 +1504,23 @@ function UserPanel({ t, balance, username, rightPanel, setRightPanel,
         <button onClick={onLogout} className="text-gray-600 hover:text-gray-400 text-xs transition-colors">{t.btnLogout}</button>
       </div>
 
+      {/* แสดงข้อมูล Username & Password */}
+      {userData && (
+        <div className="bg-yellow-900/10 border border-yellow-700/30 rounded-xl p-3 space-y-2">
+          <div className="text-yellow-400 text-[10px] font-bold tracking-widest">👤 ข้อมูลผู้ใช้</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-gray-500 text-[9px]">Username</div>
+              <div className="text-white font-bold text-xs">{userData.username}</div>
+            </div>
+            <div>
+              <div className="text-gray-500 text-[9px]">Password</div>
+              <div className="text-yellow-300 font-mono font-bold text-xs">{userData.password}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-black/40 border border-yellow-900/30 rounded-xl p-4 text-center">
         <div className="text-gray-500 text-[10px] tracking-widest mb-1">{t.balanceLabel}</div>
         <div className="flex items-baseline justify-center gap-1">
@@ -1255,6 +1529,17 @@ function UserPanel({ t, balance, username, rightPanel, setRightPanel,
             style={{ textShadow: '0 0 16px rgba(234,179,8,0.3)' }}>{balance.toLocaleString()}</span>
         </div>
       </div>
+
+      {/* ปุ่มยกเลิกการเช่า (แสดงเฉพาะเมื่อกำลังเช่าอยู่) */}
+      {userData?.rentingMachine && (
+        <button
+          onClick={onCancelRental}
+          className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-all"
+          style={{ boxShadow: '0 0 14px rgba(234,88,12,0.3)' }}
+        >
+          🚫 ยกเลิกการเช่า {userData.rentingMachine}
+        </button>
+      )}
 
       <button
         onClick={() => setRightPanel(rightPanel === 'topup' ? 'login' : 'topup')}
@@ -1317,18 +1602,109 @@ const DURATION_OPTIONS = [
   { label: '1 เดือน',   days: 30, price: 2800 },
 ]
 
-function RentalInfoModal({ server, orderId, pass, onClose, dark }: {
+function RentalInfoModal({ server, orderId, pass, user, onRented, onClose, dark }: {
   server: VPSServer; orderId: string; pass: string
-  onClose: () => void; dark: boolean
+  user: User
+  onRented: () => void; onClose: () => void; dark: boolean
 }) {
   const [copied,   setCopied]   = useState<string | null>(null)
   const [duration, setDuration] = useState(DURATION_OPTIONS[0]) // default 1 อาทิตย์ (index 0)
   const [step,     setStep]     = useState<'select' | 'info'>('select')
+  const [renting,  setRenting]  = useState(false)
 
-  function copy(text: string, key: string) {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
+  // คัดลอกทั้ง ID และรหัสพร้อมกัน
+  function copyBoth() {
+    const both = `AnyDesk ID: ${server.anydeskId ?? ''}\nรหัสผ่าน: ${pass}`
+    navigator.clipboard.writeText(both)
+    setCopied('both')
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  // ฟังก์ชันเช่าเครื่องและหักเงิน
+  async function handleRent() {
+    console.log('🚀 handleRent เริ่มทำงาน', { renting, balance: user.balance, price: duration.price })
+
+    if (renting) {
+      console.log('⏸️ กำลังดำเนินการอยู่แล้ว')
+      return
+    }
+
+    // เช็คเงินพอหรือไม่
+    if (user.balance < duration.price) {
+      console.log('❌ เงินไม่พอ', user.balance, '<', duration.price)
+      alert('💰 ยอดเงินไม่เพียงพอ! กรุณาเติมเงินก่อนเช่าเครื่อง')
+      return
+    }
+
+    setRenting(true)
+    console.log('✅ เริ่มเช่าเครื่อง...')
+
+    try {
+      // 1. หักเงินผู้ใช้
+      const newBalance = user.balance - duration.price
+      const newTotalSpent = user.totalSpent + duration.price
+
+      console.log('💰 หักเงิน:', { userId: user.id, newBalance, newTotalSpent })
+
+      const userRes = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          balance: newBalance,
+          totalSpent: newTotalSpent,
+          rentingMachine: server.name
+        })
+      })
+
+      console.log('📡 User API Response:', userRes.status, userRes.ok)
+
+      if (!userRes.ok) {
+        const errorData = await userRes.json()
+        console.error('❌ User API Error:', errorData)
+        throw new Error('หักเงินล้มเหลว: ' + (errorData.message || ''))
+      }
+
+      // 2. อัพเดทเครื่อง (เช่า)
+      const rentedAt = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const expiresAt = new Date(Date.now() + duration.days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+      console.log('🖥️ อัพเดทเครื่อง:', { machineId: server.id, rentedAt, expiresAt })
+
+      const machineRes = await fetch(`/api/machines/${server.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'active',
+          user: user.username,
+          rentedAt,
+          expiresAt,
+          anydeskPass: pass
+        })
+      })
+
+      console.log('📡 Machine API Response:', machineRes.status, machineRes.ok)
+
+      if (!machineRes.ok) {
+        const errorData = await machineRes.json()
+        console.error('❌ Machine API Error:', errorData)
+        throw new Error('เช่าเครื่องล้มเหลว: ' + (errorData.message || ''))
+      }
+
+      // 3. รีโหลดข้อมูล
+      console.log('🔄 รีโหลดข้อมูล...')
+      onRented()
+
+      // 4. แสดงหน้าข้อมูลเครื่อง
+      console.log('✅ เช่าสำเร็จ! เปลี่ยนเป็นหน้า info')
+      setStep('info')
+
+    } catch (error) {
+      console.error('❌ เกิด Error:', error)
+      alert('❌ เกิดข้อผิดพลาด: ' + (error as Error).message)
+    } finally {
+      setRenting(false)
+      console.log('🏁 เสร็จสิ้น')
+    }
   }
 
   const gold   = 'linear-gradient(135deg,#F5E6A3,#D4AF37,#92740A)'
@@ -1391,10 +1767,11 @@ function RentalInfoModal({ server, orderId, pass, onClose, dark }: {
                 <div className="text-xs mt-0.5" style={{ color: dark ? '#6B5208' : '#9a7820' }}>{duration.label}</div>
               </div>
 
-              <button onClick={() => setStep('info')}
-                className="w-full py-3 font-bold rounded-xl text-sm transition-all hover:opacity-90 active:scale-[0.98]"
+              <button onClick={handleRent}
+                disabled={renting}
+                className="w-full py-3 font-bold rounded-xl text-sm transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: gold, color: '#1a1208', boxShadow: '0 2px 12px rgba(212,175,55,0.4)' }}>
-                ยืนยันและรับข้อมูลเชื่อมต่อ →
+                {renting ? '⏳ กำลังดำเนินการ...' : 'ยืนยันและรับข้อมูลเชื่อมต่อ →'}
               </button>
             </>
           ) : (
@@ -1420,10 +1797,10 @@ function RentalInfoModal({ server, orderId, pass, onClose, dark }: {
                   <span className="font-black text-xl tracking-wider" style={{ color: dark ? '#F5E6A3' : '#1a1208' }}>
                     {server.anydeskId ?? 'ยังไม่ตั้งค่า'}
                   </span>
-                  <button onClick={() => copy(server.anydeskId ?? '', 'id')}
+                  <button onClick={copyBoth}
                     className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95"
                     style={{ background: gold, color: '#1a1208' }}>
-                    {copied === 'id' ? '✓ คัดลอก' : 'คัดลอก'}
+                    {copied === 'both' ? '✓ คัดลอก' : 'คัดลอก'}
                   </button>
                 </div>
               </div>
@@ -1435,26 +1812,19 @@ function RentalInfoModal({ server, orderId, pass, onClose, dark }: {
                   <span className="font-black text-2xl tracking-[0.2em]" style={{ color: dark ? '#F5C842' : '#7a5800' }}>
                     {pass}
                   </span>
-                  <button onClick={() => copy(pass, 'pass')}
+                  <button onClick={copyBoth}
                     className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95"
                     style={{ background: gold, color: '#1a1208' }}>
-                    {copied === 'pass' ? '✓ คัดลอก' : 'คัดลอก'}
+                    {copied === 'both' ? '✓ คัดลอก' : 'คัดลอก'}
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button onClick={() => setStep('select')}
-                  className="px-4 py-3 font-bold rounded-xl text-sm transition-all"
-                  style={{ background: dark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.12)', color: dark ? '#C9A84C' : '#7a5800', border: `1px solid ${border}` }}>
-                  ← ย้อนกลับ
-                </button>
-                <button onClick={onClose}
-                  className="flex-1 py-3 font-bold rounded-xl text-sm transition-all hover:opacity-90 active:scale-[0.98]"
-                  style={{ background: gold, color: '#1a1208', boxShadow: '0 2px 12px rgba(212,175,55,0.4)' }}>
-                  รับทราบ
-                </button>
-              </div>
+              <button onClick={onClose}
+                className="w-full py-3 font-bold rounded-xl text-sm transition-all hover:opacity-90 active:scale-[0.98]"
+                style={{ background: gold, color: '#1a1208', boxShadow: '0 2px 12px rgba(212,175,55,0.4)' }}>
+                รับทราบ
+              </button>
             </>
           )}
         </div>
@@ -1538,6 +1908,7 @@ function Footer({ dark }: { dark: boolean }) {
                 { icon: '🔍', label: 'ค้นหาร้านเช่าคอม' },
                 { icon: '👤', label: 'เข้าสู่ระบบผู้เช่า' },
                 { icon: '🏪', label: 'เข้าสู่ระบบเจ้าของร้าน', href: '/admin' },
+                { icon: '💾', label: 'ดาวน์โหลด Agent (เครื่องลูก)', href: '/download' },
               ].map(l => (
                 <li key={l.label}>
                   <a href={l.href ?? '#'}

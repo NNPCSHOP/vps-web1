@@ -14,6 +14,12 @@ type AdminTab = 'dashboard' | 'machines' | 'agents' | 'users' | 'payments'
 interface AgentInfo {
   machineId: string; name: string; ip: string
   anydeskId: string; lastSeen: number; online: boolean
+  // ข้อมูลเพิ่มเติมจากเครื่องลูก
+  cpu?: number
+  ramUsed?: number
+  ramTotal?: number
+  ramPercent?: number
+  uptime?: string
 }
 
 interface MachineStats {
@@ -55,6 +61,16 @@ export default function AdminPage() {
   const [username,   setUsername]  = useState('')
   const [password,   setPassword]  = useState('')
   const [passErr,    setPassErr]   = useState(false)
+  const [checking,   setChecking]  = useState(true) // เช็ค session ตอนเริ่มต้น
+
+  // เช็ค session เมื่อโหลดหน้าครั้งแรก
+  useEffect(() => {
+    const savedAuth = sessionStorage.getItem('admin_authed')
+    if (savedAuth === 'true') {
+      setAuthed(true)
+    }
+    setChecking(false)
+  }, [])
 
   async function handleLogin() {
     try {
@@ -68,7 +84,8 @@ export default function AdminPage() {
 
       if (data.success) {
         setAuthed(true)
-        // เก็บ session token (ถ้ามี)
+        // บันทึก session
+        sessionStorage.setItem('admin_authed', 'true')
         if (data.token) sessionStorage.setItem('admin_token', data.token)
       } else {
         setPassErr(true)
@@ -78,6 +95,21 @@ export default function AdminPage() {
       setPassErr(true)
       setTimeout(() => setPassErr(false), 1500)
     }
+  }
+
+  function handleLogout() {
+    setAuthed(false)
+    sessionStorage.removeItem('admin_authed')
+    sessionStorage.removeItem('admin_token')
+  }
+
+  // แสดง loading ขณะเช็ค session
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center">
+        <div className="text-white text-lg">กำลังโหลด...</div>
+      </div>
+    )
   }
 
   if (!authed) return (
@@ -134,18 +166,49 @@ export default function AdminPage() {
     </div>
   )
 
-  return <AdminDashboard />
+  return <AdminDashboard onLogout={handleLogout} />
 }
 
 /* ─── MAIN DASHBOARD ─── */
-function AdminDashboard() {
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [tab,          setTab]         = useState<AdminTab>('dashboard')
-  const [machines,     setMachines]    = useState<Machine[]>(INIT_MACHINES)
-  const [users,        setUsers]       = useState<User[]>(INIT_USERS)
+  const [machines,     setMachines]    = useState<Machine[]>([])
+  const [users,        setUsers]       = useState<User[]>([])
   const [payments,     setPayments]    = useState<Payment[]>(INIT_PAYMENTS)
   const [machineStats, setMachineStats]= useState<Record<string, MachineStats>>({})
   const [ctrlMsg,      setCtrlMsg]     = useState<Record<string, string>>({})
   const [agents,       setAgents]      = useState<AgentInfo[]>([])
+
+
+  // โหลดข้อมูลเครื่องจาก API ตอนเริ่มต้น
+  useEffect(() => {
+    async function loadMachines() {
+      try {
+        const res = await fetch('/api/machines')
+        const data = await res.json()
+        if (data.machines) setMachines(data.machines)
+      } catch (error) {
+        console.error('โหลดข้อมูลเครื่องล้มเหลว:', error)
+        setMachines(INIT_MACHINES) // ใช้ข้อมูลเริ่มต้นถ้าโหลดไม่ได้
+      }
+    }
+    loadMachines()
+  }, [])
+
+  // โหลดข้อมูลผู้ใช้จาก API ตอนเริ่มต้น
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users')
+        const data = await res.json()
+        if (data.users) setUsers(data.users)
+      } catch (error) {
+        console.error('โหลดข้อมูลผู้ใช้ล้มเหลว:', error)
+        setUsers(INIT_USERS) // ใช้ข้อมูลเริ่มต้นถ้าโหลดไม่ได้
+      }
+    }
+    loadUsers()
+  }, [])
 
   // ดึงรายชื่อ agent ทุก 5 วินาที
   useEffect(() => {
@@ -211,46 +274,152 @@ function AdminDashboard() {
     setTimeout(() => setCtrlMsg(s => { const n = { ...s }; delete n[id]; return n }), 5_000)
   }
 
-  function addMachine(form: Omit<Machine, 'id'>) {
+  async function addMachine(form: Omit<Machine, 'id'>) {
     const id = `m${Date.now()}`
-    setMachines(ms => [...ms, { id, ...form }])
+    const newMachine = { id, ...form }
+
+    try {
+      const res = await fetch('/api/machines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMachine)
+      })
+      const data = await res.json()
+
+      if (data.success && data.machines) {
+        setMachines(data.machines)
+      } else {
+        throw new Error(data.message || 'เพิ่มเครื่องล้มเหลว')
+      }
+    } catch (error) {
+      console.error('เพิ่มเครื่องล้มเหลว:', error)
+      alert('เพิ่มเครื่องล้มเหลว: ' + (error instanceof Error ? error.message : String(error)))
+    }
   }
 
-  function removeMachine(id: string) {
-    setMachines(ms => ms.filter(m => m.id !== id))
+  async function removeMachine(id: string) {
+    try {
+      const res = await fetch(`/api/machines/${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+
+      if (data.success && data.machines) {
+        setMachines(data.machines)
+      } else {
+        throw new Error(data.message || 'ลบเครื่องล้มเหลว')
+      }
+    } catch (error) {
+      console.error('ลบเครื่องล้มเหลว:', error)
+      alert('ลบเครื่องล้มเหลว: ' + (error instanceof Error ? error.message : String(error)))
+    }
   }
 
-  function updateMachineSSH(id: string, fields: Partial<Pick<Machine, 'sshUser' | 'sshPass' | 'sshPort' | 'mac' | 'ip'>>) {
-    setMachines(ms => ms.map(m => m.id === id ? { ...m, ...fields } : m))
+  async function updateMachineSSH(id: string, fields: Partial<Pick<Machine, 'sshUser' | 'sshPass' | 'sshPort' | 'mac' | 'ip'>>) {
+    try {
+      const res = await fetch(`/api/machines/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields)
+      })
+      const data = await res.json()
+
+      if (data.success && data.machines) {
+        setMachines(data.machines)
+      }
+    } catch (error) {
+      console.error('อัพเดทเครื่องล้มเหลว:', error)
+    }
   }
 
-  function changeMachineStatus(id: string, status: MachineStatus) {
-    setMachines(ms => ms.map(m => m.id === id
-      ? { ...m, status, user: status !== 'active' ? undefined : m.user }
-      : m
-    ))
+  async function changeMachineStatus(id: string, status: MachineStatus) {
+    try {
+      const res = await fetch(`/api/machines/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          user: status !== 'active' ? undefined : machines.find(m => m.id === id)?.user
+        })
+      })
+      const data = await res.json()
+
+      if (data.success && data.machines) {
+        setMachines(data.machines)
+      }
+    } catch (error) {
+      console.error('เปลี่ยนสถานะล้มเหลว:', error)
+    }
   }
 
-  function approvePayment(id: string) {
+  async function approvePayment(id: string) {
     const pay = payments.find(p => p.id === id)
     if (!pay) return
+
     setPayments(ps => ps.map(p => p.id === id ? { ...p, status: 'approved', note: 'อนุมัติแล้ว' } : p))
-    setUsers(us => us.map(u => u.username === pay.username ? { ...u, balance: u.balance + pay.amount } : u))
+
+    // อัพเดท balance ของผู้ใช้ผ่าน API
+    const user = users.find(u => u.username === pay.username)
+    if (user) {
+      try {
+        const res = await fetch(`/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ balance: user.balance + pay.amount })
+        })
+        const data = await res.json()
+        if (data.success && data.users) {
+          setUsers(data.users)
+        }
+      } catch (error) {
+        console.error('อัพเดท balance ล้มเหลว:', error)
+      }
+    }
   }
 
   function rejectPayment(id: string) {
     setPayments(ps => ps.map(p => p.id === id ? { ...p, status: 'rejected', note: 'ปฏิเสธโดยแอดมิน' } : p))
   }
 
-  function toggleUserBan(id: string) {
-    setUsers(us => us.map(u => u.id === id ? { ...u, status: u.status === 'banned' ? 'active' : 'banned' } : u))
+  async function toggleUserBan(id: string) {
+    const user = users.find(u => u.id === id)
+    if (!user) return
+
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: user.status === 'banned' ? 'active' : 'banned' })
+      })
+      const data = await res.json()
+      if (data.success && data.users) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('เปลี่ยนสถานะผู้ใช้ล้มเหลว:', error)
+    }
   }
 
-  function addBalance(id: string, amount: number) {
-    setUsers(us => us.map(u => u.id === id ? { ...u, balance: u.balance + amount } : u))
+  async function addBalance(id: string, amount: number) {
+    const user = users.find(u => u.id === id)
+    if (!user) return
+
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: user.balance + amount })
+      })
+      const data = await res.json()
+      if (data.success && data.users) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('เพิ่ม balance ล้มเหลว:', error)
+    }
   }
 
-  function deleteUser(id: string) {
+  async function deleteUser(id: string) {
     const user = users.find(u => u.id === id)
     if (!user) return
 
@@ -258,16 +427,26 @@ function AdminDashboard() {
     const confirmed = confirm(`ต้องการลบสมาชิก "${user.username}" จริงหรือไม่?\n\nข้อมูลจะหายถาวร!`)
     if (!confirmed) return
 
-    // ลบออกจาก state
-    setUsers(us => us.filter(u => u.id !== id))
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
 
-    // ถ้ากำลังเช่าเครื่องอยู่ให้ปลดเครื่องด้วย
-    if (user.rentingMachine) {
-      setMachines(ms => ms.map(m =>
-        m.name === user.rentingMachine
-          ? { ...m, status: 'available' as MachineStatus, user: undefined, rentedAt: undefined, expiresAt: undefined }
-          : m
-      ))
+      if (data.success) {
+        // อัพเดททั้ง users และ machines
+        if (data.users) setUsers(data.users)
+
+        // รีโหลดข้อมูลเครื่องเพื่อแสดงสถานะที่อัพเดท
+        const machinesRes = await fetch('/api/machines')
+        const machinesData = await machinesRes.json()
+        if (machinesData.machines) setMachines(machinesData.machines)
+      } else {
+        throw new Error(data.message || 'ลบผู้ใช้ล้มเหลว')
+      }
+    } catch (error) {
+      console.error('ลบผู้ใช้ล้มเหลว:', error)
+      alert('ลบผู้ใช้ล้มเหลว: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
@@ -303,6 +482,12 @@ function AdminDashboard() {
             <a href="/" className="text-gray-600 hover:text-gray-400 text-xs transition-colors border border-gray-800 rounded-lg px-3 py-1.5">
               ← หน้าร้าน
             </a>
+            <button
+              onClick={onLogout}
+              className="text-red-500 hover:text-red-400 text-xs transition-colors border border-red-800/60 rounded-lg px-3 py-1.5 hover:bg-red-900/20"
+            >
+              🚪 ออกจากระบบ
+            </button>
           </div>
         </div>
       </header>
@@ -336,12 +521,13 @@ function AdminDashboard() {
           <AgentTab
             agents={agents}
             machines={machines}
-            onAddMachine={(m: Omit<Machine, 'id'>) => setMachines(ms => [...ms, { id: `m${Date.now()}`, ...m }])}
+            onAddMachine={addMachine}
+            onUpdateMachine={updateMachineSSH}
           />
         )}
         {tab === 'machines' && (
           <MachinesTab
-            machines={machines} machineStats={machineStats} ctrlMsg={ctrlMsg}
+            machines={machines} users={users} machineStats={machineStats} ctrlMsg={ctrlMsg}
             onChangeStatus={changeMachineStatus}
             onCheckStatus={checkStatus}
             onControl={controlMachine}
@@ -435,8 +621,8 @@ function DashboardTab({ totalRevenue, todayRevenue, machines, users, payments, a
 }
 
 /* ─── MACHINES TAB ─── */
-function MachinesTab({ machines, machineStats, ctrlMsg, onChangeStatus, onCheckStatus, onControl, onAdd, onRemove, onUpdateSSH }: {
-  machines: Machine[]; machineStats: Record<string, MachineStats>; ctrlMsg: Record<string, string>
+function MachinesTab({ machines, users, machineStats, ctrlMsg, onChangeStatus, onCheckStatus, onControl, onAdd, onRemove, onUpdateSSH }: {
+  machines: Machine[]; users: User[]; machineStats: Record<string, MachineStats>; ctrlMsg: Record<string, string>
   onChangeStatus: (id: string, s: MachineStatus) => void
   onCheckStatus: (id: string) => void
   onControl: (id: string, action: 'start' | 'stop' | 'restart') => void
@@ -605,7 +791,38 @@ function MachinesTab({ machines, machineStats, ctrlMsg, onChangeStatus, onCheckS
                                 className="w-full bg-black/40 border border-gray-700/60 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-blue-700/60"
                               />
                             </div>
+                            <div>
+                              <label className="text-gray-600 text-[10px] block mb-1">AnyDesk ID</label>
+                              <div className="w-full bg-black/40 border border-gray-700/60 rounded-lg px-2 py-1.5 text-orange-400 text-xs font-mono font-bold">
+                                {m.anydeskId || '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-gray-600 text-[10px] block mb-1">AnyDesk Password</label>
+                              <div className="w-full bg-black/40 border border-orange-700/30 rounded-lg px-2 py-1.5 text-orange-300 text-xs font-mono font-bold">
+                                {m.anydeskPass || '(ยังไม่ตั้ง)'}
+                              </div>
+                            </div>
                           </div>
+
+                          {/* แสดงข้อมูลผู้เช่า (ถ้ามี) */}
+                          {m.user && (
+                            <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-xl">
+                              <div className="text-yellow-400 text-xs font-bold mb-2">👤 ข้อมูลผู้เช่า</div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <div className="text-gray-500 text-[10px]">Username:</div>
+                                  <div className="text-white font-bold text-sm">{m.user}</div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500 text-[10px]">Password:</div>
+                                  <div className="text-yellow-300 font-mono font-bold text-sm">
+                                    {users.find(u => u.username === m.user)?.password || '—'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* แก้ไขสเปก */}
                           <div className="text-gray-400 text-xs font-bold mt-4 mb-3">🔧 สเปกเครื่อง (แสดงในหน้าร้าน)</div>
@@ -731,7 +948,10 @@ function UsersTab({ users, onToggleBan, onAddBalance, onDeleteUser }: {
 
   function handleTopup(id: string) {
     const amount = parseInt(topupAmount)
-    if (!amount || amount <= 0) return
+    if (!amount || amount <= 0) {
+      alert('กรุณากรอกจำนวนเงินที่ถูกต้อง')
+      return
+    }
     onAddBalance(id, amount)
     setTopupId(null)
     setTopupAmount('')
@@ -827,10 +1047,11 @@ function UsersTab({ users, onToggleBan, onAddBalance, onDeleteUser }: {
 
 /* ─── PAYMENTS TAB ─── */
 /* ─── AGENT TAB ─── */
-function AgentTab({ agents, machines, onAddMachine }: {
+function AgentTab({ agents, machines, onAddMachine, onUpdateMachine }: {
   agents: AgentInfo[]
   machines: Machine[]
   onAddMachine: (m: Omit<Machine, 'id'>) => void
+  onUpdateMachine: (id: string, data: Partial<Machine>) => void
 }) {
   const [passMsg,  setPassMsg]  = useState<Record<string, string>>({})
   const [ssTime,   setSsTime]   = useState(Date.now())
@@ -850,6 +1071,10 @@ function AgentTab({ agents, machines, onAddMachine }: {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+
+      // อัพเดทรหัสในเครื่อง
+      onUpdateMachine(machineId, { anydeskPass: data.password })
+
       setPassMsg(s => ({ ...s, [machineId]: `✓ รหัสใหม่: ${data.password}` }))
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -932,9 +1157,40 @@ function AgentTab({ agents, machines, onAddMachine }: {
                     </div>
                   </div>
 
+                  {/* ข้อมูลเครื่อง Real-time */}
+                  {(a.cpu !== undefined || a.ramPercent !== undefined || a.uptime) && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {a.cpu !== undefined && (
+                        <div className="bg-black/30 border border-blue-900/30 rounded-lg p-2">
+                          <div className="text-gray-500 text-[9px]">CPU</div>
+                          <div className="text-blue-400 font-black text-sm">{a.cpu}%</div>
+                        </div>
+                      )}
+                      {a.ramPercent !== undefined && (
+                        <div className="bg-black/30 border border-purple-900/30 rounded-lg p-2">
+                          <div className="text-gray-500 text-[9px]">RAM</div>
+                          <div className="text-purple-400 font-black text-sm">{a.ramPercent}%</div>
+                        </div>
+                      )}
+                      {a.uptime && (
+                        <div className="bg-black/30 border border-green-900/30 rounded-lg p-2">
+                          <div className="text-gray-500 text-[9px]">Uptime</div>
+                          <div className="text-green-400 font-black text-[10px]">{a.uptime}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* AnyDesk password control */}
                   <div className="bg-black/30 border border-orange-900/30 rounded-xl p-3">
                     <div className="text-orange-400 text-[10px] font-bold mb-2">🔐 AnyDesk Password</div>
+                    {/* แสดงรหัสปัจจุบัน */}
+                    <div className="mb-2 bg-black/40 rounded-lg px-3 py-2 border border-gray-700/30">
+                      <div className="text-gray-500 text-[9px] mb-1">รหัสปัจจุบัน:</div>
+                      <div className="text-orange-300 font-mono font-bold text-sm">
+                        {machines.find(m => m.id === a.machineId)?.anydeskPass || '(ยังไม่ตั้ง)'}
+                      </div>
+                    </div>
                     {msg && <div className={`text-xs mb-2 font-bold ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✕') ? 'text-red-400' : 'text-yellow-400'}`}>{msg}</div>}
                     <button
                       onClick={() => changePassword(a.machineId)}
