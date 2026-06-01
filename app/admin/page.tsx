@@ -1424,18 +1424,19 @@ function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machin
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-white font-bold">🖥️ ระบบเครื่องแม่ (Server)</h2>
+        <h2 className="text-white font-bold">💻 เครื่องทั้งหมด ({agents.length} เครื่อง)</h2>
         <a
           href="/server-dashboard"
           target="_blank"
           className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all"
         >
-          เปิด Dashboard เต็มรูปแบบ →
+          📊 เปิด Server Dashboard
         </a>
       </div>
 
-      {/* Server Stats Cards */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${serverStats?.gpu ? 'xl:grid-cols-6' : 'xl:grid-cols-4'}`}>
+      {/* เครื่องลูกทั้งหมด */}
+      {agents.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* CPU */}
         <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
