@@ -1386,6 +1386,14 @@ function ServerTab() {
     uptime: string
     platform: string
     hostname: string
+    gpu?: {
+      gpuName: string
+      gpuUsage: number
+      vramUsed: number
+      vramTotal: number
+      vramPercent: number
+      temperature?: number
+    }
   } | null>(null)
 
   useEffect(() => {
@@ -1420,7 +1428,7 @@ function ServerTab() {
       </div>
 
       {/* Server Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${serverStats?.gpu ? 'xl:grid-cols-6' : 'xl:grid-cols-4'}`}>
         {/* CPU */}
         <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
@@ -1507,6 +1515,73 @@ function ServerTab() {
           </div>
           <div className="text-xs text-gray-400 font-bold">Server Uptime</div>
         </div>
+
+        {/* GPU Usage */}
+        {serverStats?.gpu && (
+          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-3xl">🎮</span>
+              {serverStats.gpu.temperature && (
+                <span className="text-[10px] text-orange-400">🌡️ {serverStats.gpu.temperature}°C</span>
+              )}
+            </div>
+            <div className={`text-3xl font-black mb-1 ${
+              serverStats.gpu.gpuUsage >= 90 ? 'text-red-400'
+              : serverStats.gpu.gpuUsage >= 70 ? 'text-orange-400'
+              : serverStats.gpu.gpuUsage >= 50 ? 'text-yellow-400'
+              : 'text-green-400'
+            }`}>
+              {serverStats.gpu.gpuUsage}%
+            </div>
+            <div className="text-xs text-gray-400 font-bold">GPU Usage</div>
+            <div className="text-[10px] text-gray-500 mt-1 truncate" title={serverStats.gpu.gpuName}>
+              {serverStats.gpu.gpuName}
+            </div>
+            <div className="mt-2 h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  serverStats.gpu.gpuUsage >= 90 ? 'bg-red-500'
+                  : serverStats.gpu.gpuUsage >= 70 ? 'bg-orange-500'
+                  : serverStats.gpu.gpuUsage >= 50 ? 'bg-yellow-500'
+                  : 'bg-green-500'
+                }`}
+                style={{ width: `${serverStats.gpu.gpuUsage}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* VRAM Usage */}
+        {serverStats?.gpu && serverStats.gpu.vramTotal > 0 && (
+          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-3xl">🎨</span>
+            </div>
+            <div className={`text-3xl font-black mb-1 ${
+              serverStats.gpu.vramPercent >= 90 ? 'text-red-400'
+              : serverStats.gpu.vramPercent >= 75 ? 'text-orange-400'
+              : serverStats.gpu.vramPercent >= 60 ? 'text-yellow-400'
+              : 'text-purple-400'
+            }`}>
+              {serverStats.gpu.vramPercent}%
+            </div>
+            <div className="text-xs text-gray-400 font-bold">VRAM Usage</div>
+            <div className="text-[10px] text-gray-500 mt-1">
+              {(serverStats.gpu.vramUsed / 1024).toFixed(1)} / {(serverStats.gpu.vramTotal / 1024).toFixed(1)} GB
+            </div>
+            <div className="mt-2 h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  serverStats.gpu.vramPercent >= 90 ? 'bg-red-500'
+                  : serverStats.gpu.vramPercent >= 75 ? 'bg-orange-500'
+                  : serverStats.gpu.vramPercent >= 60 ? 'bg-yellow-500'
+                  : 'bg-purple-500'
+                }`}
+                style={{ width: `${serverStats.gpu.vramPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* System Info */}
         <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">

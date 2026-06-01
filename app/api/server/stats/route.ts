@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import os from 'os'
+import si from 'systeminformation'
 
 /**
  * 📊 API สำหรับดึงสถานะเครื่องแม่ (Server Stats)
  * - CPU Usage
  * - RAM Usage
+ * - GPU Usage (VGA)
+ * - VRAM Usage
  * - Uptime
  * - Network Info
  */
@@ -30,6 +33,40 @@ export async function GET() {
     const usedRAM = totalRAM - freeRAM
     const ramPercent = Math.round((usedRAM / totalRAM) * 100)
 
+    // GPU & VRAM Usage
+    let gpuData: {
+      gpuName: string
+      gpuUsage: number
+      vramUsed: number
+      vramTotal: number
+      vramPercent: number
+      temperature?: number
+    } | null = null
+
+    try {
+      const graphics = await si.graphics()
+      if (graphics.controllers && graphics.controllers.length > 0) {
+        const gpu = graphics.controllers[0]
+
+        // ดึงข้อมูล GPU Load
+        const gpuLoad = await si.currentLoad()
+
+        gpuData = {
+          gpuName: gpu.model || 'Unknown GPU',
+          gpuUsage: Math.round(gpuLoad.currentLoad || 0),
+          vramUsed: gpu.memoryUsed || 0,
+          vramTotal: gpu.vram || 0,
+          vramPercent: gpu.vram && gpu.memoryUsed
+            ? Math.round((gpu.memoryUsed / gpu.vram) * 100)
+            : 0,
+          temperature: gpu.temperatureGpu
+        }
+      }
+    } catch (gpuError) {
+      console.warn('GPU info not available:', gpuError)
+      // ไม่ throw error เพื่อให้ส่วนอื่นทำงานต่อได้
+    }
+
     // Uptime
     const uptimeSeconds = os.uptime()
     const uptimeFormatted = formatUptime(uptimeSeconds)
@@ -46,6 +83,7 @@ export async function GET() {
         ramUsed: parseFloat((usedRAM / (1024 ** 3)).toFixed(2)),
         ramTotal: parseFloat((totalRAM / (1024 ** 3)).toFixed(2)),
         ramPercent,
+        gpu: gpuData,
         uptime: uptimeFormatted,
         platform,
         hostname,

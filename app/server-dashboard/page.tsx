@@ -14,6 +14,14 @@ interface ServerStats {
   ramPercent: number
   uptime: string
   timestamp: number
+  gpu?: {
+    gpuName: string
+    gpuUsage: number
+    vramUsed: number
+    vramTotal: number
+    vramPercent: number
+    temperature?: number
+  }
 }
 
 interface MachineStatus {
@@ -124,7 +132,7 @@ export default function ServerDashboardPage() {
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
 
         {/* Server Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {/* CPU */}
           <StatCard
             icon="⚡"
@@ -143,6 +151,30 @@ export default function ServerDashboardPage() {
             color={getColorByRAM(serverStats?.ramPercent || 0)}
             loading={!serverStats}
           />
+
+          {/* GPU */}
+          {serverStats?.gpu && (
+            <StatCard
+              icon="🎮"
+              label="GPU Usage"
+              value={`${serverStats.gpu.gpuUsage}%`}
+              subValue={serverStats.gpu.gpuName}
+              color={getColorByCPU(serverStats.gpu.gpuUsage)}
+              loading={!serverStats}
+            />
+          )}
+
+          {/* VRAM */}
+          {serverStats?.gpu && serverStats.gpu.vramTotal > 0 && (
+            <StatCard
+              icon="🎨"
+              label="VRAM Usage"
+              value={`${serverStats.gpu.vramPercent}%`}
+              subValue={`${(serverStats.gpu.vramUsed / 1024).toFixed(1)}/${(serverStats.gpu.vramTotal / 1024).toFixed(1)} GB`}
+              color={getColorByRAM(serverStats.gpu.vramPercent)}
+              loading={!serverStats}
+            />
+          )}
 
           {/* Uptime */}
           <StatCard
