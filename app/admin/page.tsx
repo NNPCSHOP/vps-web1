@@ -60,21 +60,27 @@ export default function AdminPage() {
   const [authed,     setAuthed]    = useState(false)
   const [username,   setUsername]  = useState('')
   const [password,   setPassword]  = useState('')
-  const [passErr,    setPassErr]   = useState(false)
+  const [errMsg,     setErrMsg]    = useState('')
   const [checking,   setChecking]  = useState(true) // เช็ค session ตอนเริ่มต้น
+  const [locked,     setLocked]    = useState(false) // สถานะถูกล็อค
+  const [lockTime,   setLockTime]  = useState(0) // เวลาที่เหลือ (นาที)
 
   // เช็ค session เมื่อโหลดหน้าครั้งแรก
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('admin_authed')
-    if (savedAuth === 'true') {
+    const savedToken = sessionStorage.getItem('admin_token')
+    if (savedAuth === 'true' && savedToken) {
       setAuthed(true)
     }
     setChecking(false)
   }, [])
 
   async function handleLogin() {
+    setErrMsg('') // ล้างข้อความ error เก่า
+    setLocked(false)
+
     try {
-      // ส่งไปตรวจสอบที่ API แทนการเช็คในโค้ด
+      // ส่งไปตรวจสอบที่ API
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,16 +90,36 @@ export default function AdminPage() {
 
       if (data.success) {
         setAuthed(true)
-        // บันทึก session
+        setUsername(data.user?.username || username)
+        // บันทึก session พร้อม JWT Token
         sessionStorage.setItem('admin_authed', 'true')
-        if (data.token) sessionStorage.setItem('admin_token', data.token)
+        sessionStorage.setItem('admin_token', data.token)
+        sessionStorage.setItem('admin_user', data.user?.username || username)
       } else {
-        setPassErr(true)
-        setTimeout(() => setPassErr(false), 1500)
+        // แสดงข้อความ error จาก server
+        setErrMsg(data.message || 'ข้อมูลไม่ถูกต้อง')
+
+        // เช็คว่าถูกล็อคหรือเปล่า
+        if (data.locked) {
+          setLocked(true)
+          setLockTime(data.remainingMinutes || data.lockDuration || 5)
+        }
+
+        // แสดง hint ถ้ามี
+        if (data.hint) {
+          setTimeout(() => setErrMsg(data.hint), 2000)
+        }
+
+        // ล้างข้อความหลัง 5 วินาที
+        setTimeout(() => {
+          setErrMsg('')
+          setLocked(false)
+        }, 5000)
       }
-    } catch {
-      setPassErr(true)
-      setTimeout(() => setPassErr(false), 1500)
+    } catch (error) {
+      console.error('Login error:', error)
+      setErrMsg('⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ')
+      setTimeout(() => setErrMsg(''), 3000)
     }
   }
 
@@ -130,11 +156,12 @@ export default function AdminPage() {
             <input
               type="text" value={username}
               onChange={e => setUsername(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              onKeyDown={e => e.key === 'Enter' && !locked && handleLogin()}
               placeholder="username"
+              disabled={locked}
               className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors ${
-                passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
-              }`}
+                errMsg ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
+              } ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
 
@@ -144,19 +171,40 @@ export default function AdminPage() {
             <input
               type="password" value={password}
               onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              onKeyDown={e => e.key === 'Enter' && !locked && handleLogin()}
               placeholder="password"
+              disabled={locked}
               className={`w-full bg-black/40 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none transition-colors ${
-                passErr ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
-              }`}
+                errMsg ? 'border-red-600' : 'border-gray-700/60 focus:border-red-700/60'
+              } ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
 
-          {passErr && <p className="text-red-400 text-xs text-center mb-3">ข้อมูลไม่ถูกต้อง</p>}
+          {/* ข้อความ Error / Warning */}
+          {errMsg && (
+            <div className={`mb-3 p-3 rounded-xl text-xs font-bold ${
+              locked
+                ? 'bg-red-900/20 border border-red-700/40 text-red-400'
+                : 'bg-yellow-900/20 border border-yellow-700/40 text-yellow-400'
+            }`}>
+              {errMsg}
+              {locked && lockTime > 0 && (
+                <div className="mt-1 text-red-300 text-[10px]">
+                  ⏱ รอประมาณ {lockTime} นาที
+                </div>
+              )}
+            </div>
+          )}
+
           <button onClick={handleLogin}
-            className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition-all"
-            style={{ boxShadow: '0 0 16px rgba(220,38,38,0.35)' }}>
-            เข้าสู่ระบบ
+            disabled={locked}
+            className={`w-full py-3 text-white font-bold rounded-xl text-sm transition-all ${
+              locked
+                ? 'bg-gray-700 cursor-not-allowed opacity-50'
+                : 'bg-red-600 hover:bg-red-500'
+            }`}
+            style={{ boxShadow: locked ? 'none' : '0 0 16px rgba(220,38,38,0.35)' }}>
+            {locked ? '🔒 ถูกล็อคชั่วคราว' : 'เข้าสู่ระบบ'}
           </button>
           <p className="text-center text-gray-700 text-xs mt-4">
             <a href="/" className="hover:text-gray-500 transition-colors">← กลับหน้าร้าน</a>
