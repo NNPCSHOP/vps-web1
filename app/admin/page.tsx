@@ -468,6 +468,21 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   }
 
+  async function deletePayment(id: string) {
+    try {
+      const res = await fetch(`/api/payments/${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setPayments(ps => ps.filter(p => p.id !== id))
+      }
+    } catch (error) {
+      console.error('ลบรายการชำระเงินล้มเหลว:', error)
+    }
+  }
+
   async function toggleUserBan(id: string) {
     const user = users.find(u => u.id === id)
     if (!user) return
@@ -631,7 +646,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <UsersTab users={users} onToggleBan={toggleUserBan} onAddBalance={addBalance} onDeleteUser={deleteUser} />
         )}
         {tab === 'payments' && (
-          <PaymentsTab payments={payments} onApprove={approvePayment} onReject={rejectPayment} />
+          <PaymentsTab payments={payments} onApprove={approvePayment} onReject={rejectPayment} onDelete={deletePayment} />
         )}
       </div>
     </div>
@@ -1575,19 +1590,39 @@ function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machin
 }
 
 /* ─── PAYMENTS TAB ─── */
-function PaymentsTab({ payments, onApprove, onReject }: {
-  payments: Payment[]; onApprove: (id: string) => void; onReject: (id: string) => void
+function PaymentsTab({ payments, onApprove, onReject, onDelete }: {
+  payments: Payment[]; onApprove: (id: string) => void; onReject: (id: string) => void; onDelete: (id: string) => void
 }) {
   const [filter, setFilter] = useState<PayStatus | 'all'>('all')
-  const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter)
-  const pendingCount  = payments.filter(p => p.status === 'pending').length
-  const approvedTotal = payments.filter(p => p.status === 'approved').reduce((s, p) => s + p.amount, 0)
+  const [dateFilter, setDateFilter] = useState<'all' | '7days'>('all')
+
+  // กรองตามวันที่ (7 วันล่าสุด)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const dateFiltered = dateFilter === '7days'
+    ? payments.filter(p => {
+        // แปลง createdAt string เป็น Date (format: YYYY-MM-DD HH:mm)
+        const [datePart] = p.createdAt.split(' ')
+        const [year, month, day] = datePart.split('-').map(Number)
+        const paymentDate = new Date(year, month - 1, day)
+        return paymentDate >= sevenDaysAgo
+      })
+    : payments
+
+  const filtered = filter === 'all' ? dateFiltered : dateFiltered.filter(p => p.status === filter)
+
+  // สถิติ
+  const pendingCount  = dateFiltered.filter(p => p.status === 'pending').length
+  const approvedTotal = dateFiltered.filter(p => p.status === 'approved').reduce((s, p) => s + p.amount, 0)
+  const rejectedTotal = dateFiltered.filter(p => p.status === 'rejected').reduce((s, p) => s + p.amount, 0)
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-white font-bold">ประวัติการชำระเงิน</h2>
         <div className="flex items-center gap-3">
+          {/* สถิติ */}
           <div className="flex gap-2">
             <div className="bg-yellow-500/10 border border-yellow-700/30 rounded-xl px-3 py-1.5 text-center">
               <div className="text-yellow-400 font-black text-sm">{pendingCount}</div>
@@ -1597,7 +1632,28 @@ function PaymentsTab({ payments, onApprove, onReject }: {
               <div className="text-green-400 font-black text-sm">฿{approvedTotal.toLocaleString()}</div>
               <div className="text-gray-600 text-[9px]">อนุมัติแล้ว</div>
             </div>
+            <div className="bg-red-500/10 border border-red-700/30 rounded-xl px-3 py-1.5 text-center">
+              <div className="text-red-400 font-black text-sm">฿{rejectedTotal.toLocaleString()}</div>
+              <div className="text-gray-600 text-[9px]">ปฏิเสธ</div>
+            </div>
           </div>
+
+          {/* ตัวกรองวันที่ */}
+          <div className="flex gap-1 bg-black/40 border border-gray-800 rounded-xl p-1">
+            {([
+              { key: 'all', label: 'ทั้งหมด' },
+              { key: '7days', label: '7 วันล่าสุด' },
+            ] as { key: 'all' | '7days'; label: string }[]).map(f => (
+              <button key={f.key} onClick={() => setDateFilter(f.key)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  dateFilter === f.key ? 'bg-blue-700 text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ตัวกรองสถานะ */}
           <div className="flex gap-1 bg-black/40 border border-gray-800 rounded-xl p-1">
             {([
               { key: 'all',      label: 'ทั้งหมด' },
@@ -1650,18 +1706,30 @@ function PaymentsTab({ payments, onApprove, onReject }: {
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
                     </td>
                     <td className="px-4 py-3">
-                      {p.status === 'pending' ? (
-                        <div className="flex gap-1">
-                          <button onClick={() => onApprove(p.id)}
-                            className="bg-green-900/50 hover:bg-green-800/60 text-green-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-800/40 transition-colors">
-                            ✓ อนุมัติ
-                          </button>
-                          <button onClick={() => onReject(p.id)}
-                            className="bg-red-900/40 hover:bg-red-800/50 text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-800/40 transition-colors">
-                            ✕ ปฏิเสธ
-                          </button>
-                        </div>
-                      ) : <span className="text-gray-700 text-xs">ดำเนินการแล้ว</span>}
+                      <div className="flex gap-1">
+                        {p.status === 'pending' ? (
+                          <>
+                            <button onClick={() => onApprove(p.id)}
+                              className="bg-green-900/50 hover:bg-green-800/60 text-green-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-800/40 transition-colors">
+                              ✓ อนุมัติ
+                            </button>
+                            <button onClick={() => onReject(p.id)}
+                              className="bg-red-900/40 hover:bg-red-800/50 text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-800/40 transition-colors">
+                              ✕ ปฏิเสธ
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-gray-700 text-xs mr-2">ดำเนินการแล้ว</span>
+                        )}
+                        <button onClick={() => {
+                          if (confirm(`ต้องการลบรายการชำระเงินของ "${p.username}" (฿${p.amount.toLocaleString()}) หรือไม่?`)) {
+                            onDelete(p.id)
+                          }
+                        }}
+                          className="bg-gray-900/50 hover:bg-gray-800/60 text-gray-400 hover:text-red-400 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-gray-800/40 hover:border-red-800/40 transition-colors">
+                          🗑️
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
