@@ -567,7 +567,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           />
         )}
         {tab === 'server' && (
-          <ServerTab />
+          <ServerTab agents={agents} machines={machines} />
         )}
         {tab === 'agents' && (
           <AgentTab
@@ -1377,7 +1377,7 @@ function AgentTab({ agents, machines, onAddMachine, onUpdateMachine }: {
 }
 
 /* ─── SERVER TAB ─── */
-function ServerTab() {
+function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machine[] }) {
   const [serverStats, setServerStats] = useState<{
     cpu: number
     ramUsed: number
@@ -1700,6 +1700,152 @@ function ServerTab() {
           </div>
         </div>
       </div>
+
+      {/* เครื่องลูกทั้งหมด */}
+      {agents.length > 0 && (
+        <div>
+          <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
+            <span>💻</span> เครื่องลูกทั้งหมด ({agents.length} เครื่อง)
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {agents.map(agent => {
+              const machine = machines.find(m => m.id === agent.machineId)
+              const isOnline = agent.online
+              const lastSeenMinutes = Math.floor((Date.now() - agent.lastSeen) / 60000)
+
+              return (
+                <div
+                  key={agent.machineId}
+                  className={`bg-[#1a1a1a] border rounded-2xl p-4 transition-all ${
+                    isOnline
+                      ? 'border-green-500/30 hover:bg-white/[0.02]'
+                      : 'border-gray-800/60 opacity-60'
+                  }`}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        isOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
+                      }`} />
+                      <span className={`text-xs font-bold ${
+                        isOnline ? 'text-green-400' : 'text-gray-500'
+                      }`}>
+                        {isOnline ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                    {!isOnline && lastSeenMinutes < 60 && (
+                      <span className="text-[10px] text-gray-600">
+                        {lastSeenMinutes}m ago
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Machine Info */}
+                  <div className="mb-3">
+                    <div className="text-white font-black text-base mb-1">{agent.name}</div>
+                    <div className="text-gray-500 text-xs font-mono">{agent.ip}</div>
+                    {agent.anydeskId && (
+                      <div className="text-orange-400 text-xs font-mono mt-1">
+                        🖥️ {agent.anydeskId}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stats */}
+                  {isOnline && (
+                    <div className="space-y-2 mb-3">
+                      {agent.cpu !== undefined && (
+                        <div>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-400">⚡ CPU</span>
+                            <span className={`font-bold ${
+                              agent.cpu >= 90 ? 'text-red-400'
+                              : agent.cpu >= 70 ? 'text-orange-400'
+                              : agent.cpu >= 50 ? 'text-yellow-400'
+                              : 'text-green-400'
+                            }`}>
+                              {agent.cpu}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                agent.cpu >= 90 ? 'bg-red-500'
+                                : agent.cpu >= 70 ? 'bg-orange-500'
+                                : agent.cpu >= 50 ? 'bg-yellow-500'
+                                : 'bg-green-500'
+                              }`}
+                              style={{ width: `${agent.cpu}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {agent.ramPercent !== undefined && (
+                        <div>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-400">💾 RAM</span>
+                            <span className={`font-bold ${
+                              agent.ramPercent >= 90 ? 'text-red-400'
+                              : agent.ramPercent >= 75 ? 'text-orange-400'
+                              : agent.ramPercent >= 60 ? 'text-yellow-400'
+                              : 'text-blue-400'
+                            }`}>
+                              {agent.ramPercent}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                agent.ramPercent >= 90 ? 'bg-red-500'
+                                : agent.ramPercent >= 75 ? 'bg-orange-500'
+                                : agent.ramPercent >= 60 ? 'bg-yellow-500'
+                                : 'bg-blue-500'
+                              }`}
+                              style={{ width: `${agent.ramPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {agent.uptime && (
+                        <div className="flex items-center justify-between text-xs border-t border-gray-800/50 pt-2 mt-2">
+                          <span className="text-gray-400">⏱️ Uptime</span>
+                          <span className="text-purple-400 font-bold text-[10px]">
+                            {agent.uptime}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {machine?.user && (
+                    <div className="mt-2 pt-2 border-t border-gray-800/50">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">👤 ผู้เช่า:</span>
+                        <span className="text-yellow-400 font-bold">{machine.user}</span>
+                      </div>
+                      {machine.expiresAt && (
+                        <div className="flex items-center justify-between text-xs mt-1">
+                          <span className="text-gray-600">หมดอายุ:</span>
+                          <span className="text-gray-400 text-[10px]">{machine.expiresAt}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!isOnline && (
+                    <div className="mt-3 bg-gray-900/50 border border-gray-800/50 rounded-lg px-3 py-2 text-center">
+                      <span className="text-gray-600 text-xs">🔌 Offline</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
