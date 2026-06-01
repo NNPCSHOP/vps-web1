@@ -113,8 +113,6 @@ const LANG: Record<Lang, LangPack> = {
 }
 
 /* ─── STATIC DATA ─── */
-const PRICE_OPTIONS = [50, 100, 300, 500, 1000]
-
 // สีตามสถานะ
 const STATUS_CFG: Record<ServerStatus, { dot: string; badge: string; badgeBg: string }> = {
   active:    { dot: 'bg-yellow-400', badge: 'text-yellow-400', badgeBg: 'bg-yellow-400/15 border-yellow-600/30' },
@@ -1551,18 +1549,19 @@ function UserPanel({ t, balance, username, userData, rightPanel, setRightPanel,
 
       {rightPanel === 'topup' && (
         <div className="space-y-3 pt-1">
-          <div className="text-gray-400 text-[10px] font-bold tracking-widest">{t.selectAmount}</div>
-          <div className="grid grid-cols-5 gap-1.5">
-            {PRICE_OPTIONS.map(p => (
-              <button key={p} onClick={() => setSelectedPrice(p)}
-                className={`py-2.5 text-xs font-bold rounded-lg border transition-all ${
-                  selectedPrice === p
-                    ? 'bg-red-600 border-red-500 text-white scale-105'
-                    : 'bg-gray-800/60 border-gray-700/50 text-gray-400 hover:border-red-800/50 hover:text-red-400'
-                }`}>
-                {p}
-              </button>
-            ))}
+          {/* ช่องกรอกจำนวนเงิน */}
+          <div>
+            <div className="text-gray-400 text-[10px] font-bold tracking-widest mb-2">{t.selectAmount}</div>
+            <input
+              type="number"
+              value={selectedPrice || ''}
+              onChange={(e) => {
+                const val = parseInt(e.target.value)
+                setSelectedPrice(val > 0 ? val : null)
+              }}
+              placeholder="กรอกจำนวนเงิน"
+              className="w-full px-4 py-3 bg-gray-800/60 border border-gray-700/50 text-white rounded-lg focus:border-red-500 focus:outline-none text-sm"
+            />
           </div>
 
           {selectedPrice && (
