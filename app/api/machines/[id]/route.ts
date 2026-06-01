@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/prisma'
 import { type Machine } from '@/lib/data'
 
 /**
- * API สำหรับจัดการเครื่องแต่ละตัว
+ * API สำหรับจัดการเครื่องแต่ละตัว (Database)
  */
 
 /**
@@ -17,8 +17,11 @@ export async function PUT(
     const { id } = await params
     const updatedData: Partial<Machine> = await req.json()
 
-    const machines = store.getMachines()
-    const machine = machines.find(m => m.id === id)
+    // ตรวจสอบว่ามีเครื่องนี้อยู่หรือไม่
+    const machine = await prisma.machine.findUnique({
+      where: { id }
+    })
+
     if (!machine) {
       return NextResponse.json({
         success: false,
@@ -27,16 +30,18 @@ export async function PUT(
     }
 
     // อัพเดทข้อมูล
-    const updated = store.updateMachine(id, updatedData)
-    const updatedMachine = updated.find(m => m.id === id)
+    const updatedMachine = await prisma.machine.update({
+      where: { id },
+      data: updatedData
+    })
 
     return NextResponse.json({
       success: true,
       message: 'อัพเดทสำเร็จ',
-      machine: updatedMachine,
-      machines: updated
+      machine: updatedMachine
     })
   } catch (error) {
+    console.error('Error updating machine:', error)
     return NextResponse.json({
       success: false,
       message: 'เกิดข้อผิดพลาด'
@@ -48,14 +53,17 @@ export async function PUT(
  * DELETE - ลบเครื่อง
  */
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
 
-    const machines = store.getMachines()
-    const machine = machines.find(m => m.id === id)
+    // ตรวจสอบว่ามีเครื่องนี้อยู่หรือไม่
+    const machine = await prisma.machine.findUnique({
+      where: { id }
+    })
+
     if (!machine) {
       return NextResponse.json({
         success: false,
@@ -64,15 +72,17 @@ export async function DELETE(
     }
 
     // ลบเครื่อง
-    const updated = store.deleteMachine(id)
+    await prisma.machine.delete({
+      where: { id }
+    })
 
     return NextResponse.json({
       success: true,
       message: 'ลบเครื่องสำเร็จ',
-      deleted: machine,
-      machines: updated
+      deleted: machine
     })
   } catch (error) {
+    console.error('Error deleting machine:', error)
     return NextResponse.json({
       success: false,
       message: 'เกิดข้อผิดพลาด'

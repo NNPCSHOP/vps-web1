@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/prisma'
 import { type User } from '@/lib/data'
 
 /**
- * API สำหรับจัดการข้อมูลผู้ใช้
+ * API สำหรับจัดการข้อมูลผู้ใช้ (Database)
  */
 
 /**
  * GET - ดึงข้อมูลผู้ใช้ทั้งหมด
  */
 export async function GET() {
-  const users = store.getUsers()
-  return NextResponse.json({ users })
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { username: 'asc' }
+    })
+    return NextResponse.json({ users })
+  } catch (error) {
+    console.error('Error fetching users:', error)
+    return NextResponse.json({
+      success: false,
+      message: 'ไม่สามารถดึงข้อมูลได้'
+    }, { status: 500 })
+  }
 }
 
 /**
@@ -19,47 +29,55 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const newUser: User = await req.json()
+    const data: Omit<User, 'id'> = await req.json()
 
-    // ตรวจสอบว่ามี username หรือ email ซ้ำไหม
-    const users = store.getUsers()
-    if (users.find(u => u.username === newUser.username)) {
+    // ตรวจสอบว่ามี username ซ้ำไหม
+    const existingUsername = await prisma.user.findUnique({
+      where: { username: data.username }
+    })
+
+    if (existingUsername) {
       return NextResponse.json({
         success: false,
         message: 'Username นี้มีผู้ใช้แล้ว'
       }, { status: 400 })
     }
 
-    if (users.find(u => u.email === newUser.email)) {
+    // ตรวจสอบว่ามี email ซ้ำไหม
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: data.email }
+    })
+
+    if (existingEmail) {
       return NextResponse.json({
         success: false,
         message: 'Email นี้ถูกใช้งานแล้ว'
       }, { status: 400 })
     }
 
-    const updated = store.addUser(newUser)
+    const newUser = await prisma.user.create({
+      data: {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        balance: data.balance,
+        totalSpent: data.totalSpent,
+        registeredAt: data.registeredAt,
+        status: data.status,
+        rentingMachine: data.rentingMachine,
+      }
+    })
 
     return NextResponse.json({
       success: true,
       message: 'สมัครสมาชิกสำเร็จ',
-      users: updated
+      user: newUser
     })
   } catch (error) {
+    console.error('Error creating user:', error)
     return NextResponse.json({
       success: false,
       message: 'เกิดข้อผิดพลาด'
     }, { status: 500 })
   }
-}
-
-/**
- * DELETE - รีเซ็ตข้อมูลทั้งหมด
- */
-export async function DELETE() {
-  store.reset()
-  return NextResponse.json({
-    success: true,
-    message: 'รีเซ็ตข้อมูลสำเร็จ',
-    users: store.getUsers()
-  })
 }

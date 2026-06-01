@@ -1,0 +1,80 @@
+// 🗄️ Prisma Schema สำหรับระบบ NNVPS
+// Database: Neon Postgres (Serverless)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ตารางเครื่อง (Machines)
+model Machine {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  status        String   // 'active' | 'available' | 'stopped' | 'maintenance'
+  user          String?
+  ip            String
+  mac           String?
+  sshPort       Int      @default(22)
+  sshUser       String   @default("admin")
+  sshPass       String   @default("")
+
+  // ราคา
+  priceWeekly   Int      @default(800)
+  priceMonthly  Int      @default(2800)
+
+  // วันที่เช่า
+  rentedAt      String?
+  expiresAt     String?
+
+  // สเปค
+  specCPU       String   @default("Dual Xeon E5-2686 V4 36/72")
+  specGPU       String   @default("RTX 3060 12GB")
+  specRAM       String   @default("128 GB")
+  specSSD       String   @default("1TB NVMe")
+
+  // AnyDesk
+  anydeskId     String?
+  anydeskPass   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("machines")
+}
+
+// ตารางผู้ใช้ (Users)
+model User {
+  id             String   @id @default(cuid())
+  username       String   @unique
+  email          String   @unique
+  password       String
+  balance        Int      @default(0)
+  totalSpent     Int      @default(0)
+  registeredAt   String
+  status         String   @default("active") // 'active' | 'banned'
+  rentingMachine String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ตารางการชำระเงิน (Payments)
+model Payment {
+  id        String   @id @default(cuid())
+  username  String
+  amount    Int
+  method    String   @default("PromptPay")
+  status    String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  createdAt String
+  note      String?
+
+  createdAtDb DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payments")
+}

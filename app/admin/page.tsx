@@ -222,7 +222,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [tab,          setTab]         = useState<AdminTab>('dashboard')
   const [machines,     setMachines]    = useState<Machine[]>([])
   const [users,        setUsers]       = useState<User[]>([])
-  const [payments,     setPayments]    = useState<Payment[]>(INIT_PAYMENTS)
+  const [payments,     setPayments]    = useState<Payment[]>([])
   const [machineStats, setMachineStats]= useState<Record<string, MachineStats>>({})
   const [ctrlMsg,      setCtrlMsg]     = useState<Record<string, string>>({})
   const [agents,       setAgents]      = useState<AgentInfo[]>([])
@@ -256,6 +256,21 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       }
     }
     loadUsers()
+  }, [])
+
+  // โหลดข้อมูลการชำระเงินจาก API ตอนเริ่มต้น
+  useEffect(() => {
+    async function loadPayments() {
+      try {
+        const res = await fetch('/api/payments')
+        const data = await res.json()
+        if (data.payments) setPayments(data.payments)
+      } catch (error) {
+        console.error('โหลดข้อมูลการชำระเงินล้มเหลว:', error)
+        setPayments(INIT_PAYMENTS) // ใช้ข้อมูลเริ่มต้นถ้าโหลดไม่ได้
+      }
+    }
+    loadPayments()
   }, [])
 
   // ดึงรายชื่อ agent ทุก 5 วินาที
@@ -404,29 +419,53 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const pay = payments.find(p => p.id === id)
     if (!pay) return
 
-    setPayments(ps => ps.map(p => p.id === id ? { ...p, status: 'approved', note: 'อนุมัติแล้ว' } : p))
+    try {
+      // อัพเดทสถานะการชำระเงินใน Database
+      const payRes = await fetch(`/api/payments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved', note: 'อนุมัติแล้ว' })
+      })
+      const payData = await payRes.json()
 
-    // อัพเดท balance ของผู้ใช้ผ่าน API
-    const user = users.find(u => u.username === pay.username)
-    if (user) {
-      try {
-        const res = await fetch(`/api/users/${user.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ balance: user.balance + pay.amount })
-        })
-        const data = await res.json()
-        if (data.success && data.users) {
-          setUsers(data.users)
+      if (payData.success) {
+        // อัพเดท state
+        setPayments(ps => ps.map(p => p.id === id ? payData.payment : p))
+
+        // อัพเดท balance ของผู้ใช้
+        const user = users.find(u => u.username === pay.username)
+        if (user) {
+          const userRes = await fetch(`/api/users/${user.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ balance: user.balance + pay.amount })
+          })
+          const userData = await userRes.json()
+          if (userData.success && userData.user) {
+            setUsers(us => us.map(u => u.id === user.id ? userData.user : u))
+          }
         }
-      } catch (error) {
-        console.error('อัพเดท balance ล้มเหลว:', error)
       }
+    } catch (error) {
+      console.error('อนุมัติการชำระเงินล้มเหลว:', error)
     }
   }
 
-  function rejectPayment(id: string) {
-    setPayments(ps => ps.map(p => p.id === id ? { ...p, status: 'rejected', note: 'ปฏิเสธโดยแอดมิน' } : p))
+  async function rejectPayment(id: string) {
+    try {
+      const res = await fetch(`/api/payments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected', note: 'ปฏิเสธโดยแอดมิน' })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setPayments(ps => ps.map(p => p.id === id ? data.payment : p))
+      }
+    } catch (error) {
+      console.error('ปฏิเสธการชำระเงินล้มเหลว:', error)
+    }
   }
 
   async function toggleUserBan(id: string) {
