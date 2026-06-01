@@ -25,6 +25,7 @@ export interface Payment {
   id: string; username: string
   amount: number; method: string
   status: PayStatus; createdAt: string; note?: string
+  slipImageUrl?: string; slipVerified?: boolean; slipData?: string
 }
 
 // ค่าเริ่มต้น

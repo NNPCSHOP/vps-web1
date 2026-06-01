@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
         status: data.status,
         createdAt: data.createdAt,
         note: data.note,
+        slipImageUrl: data.slipImageUrl,
+        slipVerified: data.slipVerified || false,
+        slipData: data.slipData,
       }
     })
 

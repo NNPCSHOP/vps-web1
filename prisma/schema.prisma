@@ -65,13 +65,16 @@ model User {
 
 // ตารางการชำระเงิน (Payments)
 model Payment {
-  id        String   @id @default(cuid())
-  username  String
-  amount    Int
-  method    String   @default("PromptPay")
-  status    String   @default("pending") // 'pending' | 'approved' | 'rejected'
-  createdAt String
-  note      String?
+  id           String   @id @default(cuid())
+  username     String
+  amount       Int
+  method       String   @default("PromptPay")
+  status       String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  createdAt    String
+  note         String?
+  slipImageUrl String?  // URL รูปสลิปโอนเงิน
+  slipVerified Boolean  @default(false) // ตรวจสอบสลิปแล้วหรือยัง
+  slipData     String?  // ข้อมูลจาก SlipOK (JSON)
 
   createdAtDb DateTime @default(now())
   updatedAt   DateTime @updatedAt
