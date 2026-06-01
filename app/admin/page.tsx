@@ -1394,6 +1394,13 @@ function ServerTab() {
       vramPercent: number
       temperature?: number
     }
+    power?: {
+      powerConsumption: number
+      hasBattery: boolean
+      batteryPercent?: number
+      isCharging?: boolean
+      acConnected: boolean
+    }
   } | null>(null)
 
   useEffect(() => {
@@ -1673,6 +1680,17 @@ function ServerTab() {
                   <span className="text-gray-400">Uptime:</span>
                   <span className="text-purple-400 font-bold">{serverStats.uptime}</span>
                 </div>
+                {serverStats.power && (
+                  <div className="flex justify-between text-sm border-t border-gray-800/50 pt-3 mt-3">
+                    <span className="text-gray-400">🔌 Power:</span>
+                    <span className={`font-bold ${
+                      serverStats.power.powerConsumption >= 400 ? 'text-red-400'
+                      : serverStats.power.powerConsumption >= 300 ? 'text-orange-400'
+                      : serverStats.power.powerConsumption >= 200 ? 'text-yellow-400'
+                      : 'text-green-400'
+                    }`}>{serverStats.power.powerConsumption}W</span>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-gray-500 text-sm text-center py-4">

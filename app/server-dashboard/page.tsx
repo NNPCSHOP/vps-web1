@@ -22,6 +22,13 @@ interface ServerStats {
     vramPercent: number
     temperature?: number
   }
+  power?: {
+    powerConsumption: number
+    hasBattery: boolean
+    batteryPercent?: number
+    isCharging?: boolean
+    acConnected: boolean
+  }
 }
 
 interface MachineStatus {
@@ -172,6 +179,18 @@ export default function ServerDashboardPage() {
               value={`${serverStats.gpu.vramPercent}%`}
               subValue={`${(serverStats.gpu.vramUsed / 1024).toFixed(1)}/${(serverStats.gpu.vramTotal / 1024).toFixed(1)} GB`}
               color={getColorByRAM(serverStats.gpu.vramPercent)}
+              loading={!serverStats}
+            />
+          )}
+
+          {/* Power Consumption */}
+          {serverStats?.power && (
+            <StatCard
+              icon="🔌"
+              label="Power (Watt)"
+              value={`${serverStats.power.powerConsumption}W`}
+              subValue="ประมาณการ"
+              color={getColorByPower(serverStats.power.powerConsumption)}
               loading={!serverStats}
             />
           )}
@@ -436,6 +455,13 @@ function getColorByRAMBg(ram: number): string {
   if (ram >= 75) return 'bg-orange-500'
   if (ram >= 60) return 'bg-yellow-500'
   return 'bg-blue-500'
+}
+
+function getColorByPower(watts: number): string {
+  if (watts >= 400) return 'text-red-400'      // มากเกินไป
+  if (watts >= 300) return 'text-orange-400'   // สูง
+  if (watts >= 200) return 'text-yellow-400'   // ปานกลาง
+  return 'text-green-400'                       // ปกติ
 }
 
 function formatTimeSince(timestamp: number): string {
