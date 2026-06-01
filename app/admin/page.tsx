@@ -9,7 +9,7 @@ import {
 } from '@/lib/data'
 
 /* ─── TYPES ─── */
-type AdminTab = 'dashboard' | 'machines' | 'agents' | 'users' | 'payments'
+type AdminTab = 'dashboard' | 'server' | 'machines' | 'agents' | 'users' | 'payments'
 
 interface AgentInfo {
   machineId: string; name: string; ip: string
@@ -502,7 +502,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const TABS: { key: AdminTab; label: string; icon: string; badge?: number }[] = [
     { key: 'dashboard', label: 'แดชบอร์ด', icon: '📊' },
-    { key: 'machines',  label: 'เครื่อง',   icon: '🖥',  badge: machines.filter(m => m.status === 'maintenance').length || undefined },
+    { key: 'server',    label: 'ระบบเครื่องแม่', icon: '🖥️' },
+    { key: 'machines',  label: 'เครื่อง',   icon: '💻',  badge: machines.filter(m => m.status === 'maintenance').length || undefined },
     { key: 'agents',    label: 'เอเยนต์',   icon: '🤖',  badge: onlineAgents || undefined },
     { key: 'users',     label: 'สมาชิก',    icon: '👥',  badge: users.filter(u => u.status === 'banned').length || undefined },
     { key: 'payments',  label: 'ชำระเงิน',  icon: '💳',  badge: pendingPayments || undefined },
@@ -564,6 +565,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             machines={machines} users={users} payments={payments}
             activeMachines={activeMachines} pendingPayments={pendingPayments}
           />
+        )}
+        {tab === 'server' && (
+          <ServerTab />
         )}
         {tab === 'agents' && (
           <AgentTab
@@ -1367,6 +1371,241 @@ function AgentTab({ agents, machines, onAddMachine, onUpdateMachine }: {
           </div>
         </div>
 
+      </div>
+    </div>
+  )
+}
+
+/* ─── SERVER TAB ─── */
+function ServerTab() {
+  const [serverStats, setServerStats] = useState<{
+    cpu: number
+    ramUsed: number
+    ramTotal: number
+    ramPercent: number
+    uptime: string
+    platform: string
+    hostname: string
+  } | null>(null)
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/server/stats')
+        const data = await res.json()
+        if (data.success) {
+          setServerStats(data.stats)
+        }
+      } catch (error) {
+        console.error('Failed to load server stats:', error)
+      }
+    }
+
+    loadStats()
+    const interval = setInterval(loadStats, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-white font-bold">🖥️ ระบบเครื่องแม่ (Server)</h2>
+        <a
+          href="/server-dashboard"
+          target="_blank"
+          className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all"
+        >
+          เปิด Dashboard เต็มรูปแบบ →
+        </a>
+      </div>
+
+      {/* Server Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* CPU */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-3xl">⚡</span>
+            {!serverStats && (
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className={`text-3xl font-black mb-1 ${
+            serverStats?.cpu
+              ? serverStats.cpu >= 90 ? 'text-red-400'
+              : serverStats.cpu >= 70 ? 'text-orange-400'
+              : serverStats.cpu >= 50 ? 'text-yellow-400'
+              : 'text-green-400'
+              : 'text-gray-500'
+          }`}>
+            {serverStats?.cpu ? `${serverStats.cpu}%` : '—'}
+          </div>
+          <div className="text-xs text-gray-400 font-bold">CPU Usage</div>
+          {serverStats?.cpu !== undefined && (
+            <div className="mt-3 h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  serverStats.cpu >= 90 ? 'bg-red-500'
+                  : serverStats.cpu >= 70 ? 'bg-orange-500'
+                  : serverStats.cpu >= 50 ? 'bg-yellow-500'
+                  : 'bg-green-500'
+                }`}
+                style={{ width: `${serverStats.cpu}%` }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* RAM */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-3xl">💾</span>
+            {!serverStats && (
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className={`text-3xl font-black mb-1 ${
+            serverStats?.ramPercent
+              ? serverStats.ramPercent >= 90 ? 'text-red-400'
+              : serverStats.ramPercent >= 75 ? 'text-orange-400'
+              : serverStats.ramPercent >= 60 ? 'text-yellow-400'
+              : 'text-blue-400'
+              : 'text-gray-500'
+          }`}>
+            {serverStats?.ramPercent ? `${serverStats.ramPercent}%` : '—'}
+          </div>
+          <div className="text-xs text-gray-400 font-bold">RAM Usage</div>
+          {serverStats && (
+            <>
+              <div className="text-[10px] text-gray-500 mt-1">
+                {serverStats.ramUsed.toFixed(1)} / {serverStats.ramTotal.toFixed(1)} GB
+              </div>
+              <div className="mt-2 h-2 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    serverStats.ramPercent >= 90 ? 'bg-red-500'
+                    : serverStats.ramPercent >= 75 ? 'bg-orange-500'
+                    : serverStats.ramPercent >= 60 ? 'bg-yellow-500'
+                    : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${serverStats.ramPercent}%` }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Uptime */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-3xl">⏱️</span>
+            {!serverStats && (
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+            )}
+          </div>
+          <div className="text-xl font-black text-purple-400 mb-1">
+            {serverStats?.uptime || '—'}
+          </div>
+          <div className="text-xs text-gray-400 font-bold">Server Uptime</div>
+        </div>
+
+        {/* System Info */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-3xl">🖥️</span>
+          </div>
+          <div className="text-xl font-black text-green-400 mb-1">
+            {serverStats?.hostname || '—'}
+          </div>
+          <div className="text-xs text-gray-400 font-bold">Hostname</div>
+          {serverStats && (
+            <div className="text-[10px] text-gray-500 mt-1">
+              {serverStats.platform}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Info Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Quick Access */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
+            <span>⚡</span> Quick Access
+          </h3>
+          <div className="space-y-2">
+            <a
+              href="/server-dashboard"
+              target="_blank"
+              className="block bg-blue-900/30 hover:bg-blue-800/40 border border-blue-700/30 rounded-xl p-3 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-blue-400 font-bold text-sm">📊 Server Dashboard</div>
+                  <div className="text-gray-500 text-xs">Monitor แบบเต็มรูปแบบ</div>
+                </div>
+                <span className="text-blue-400">→</span>
+              </div>
+            </a>
+            <a
+              href="/"
+              target="_blank"
+              className="block bg-green-900/30 hover:bg-green-800/40 border border-green-700/30 rounded-xl p-3 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-green-400 font-bold text-sm">🏠 หน้าร้าน</div>
+                  <div className="text-gray-500 text-xs">ดูหน้าร้านลูกค้า</div>
+                </div>
+                <span className="text-green-400">→</span>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        {/* System Info */}
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+          <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
+            <span>ℹ️</span> System Information
+          </h3>
+          <div className="space-y-3">
+            {serverStats ? (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Platform:</span>
+                  <span className="text-white font-bold">{serverStats.platform}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Hostname:</span>
+                  <span className="text-white font-bold">{serverStats.hostname}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">CPU Usage:</span>
+                  <span className={`font-bold ${
+                    serverStats.cpu >= 90 ? 'text-red-400'
+                    : serverStats.cpu >= 70 ? 'text-orange-400'
+                    : 'text-green-400'
+                  }`}>{serverStats.cpu}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">RAM Usage:</span>
+                  <span className={`font-bold ${
+                    serverStats.ramPercent >= 90 ? 'text-red-400'
+                    : serverStats.ramPercent >= 75 ? 'text-orange-400'
+                    : 'text-blue-400'
+                  }`}>{serverStats.ramPercent}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Uptime:</span>
+                  <span className="text-purple-400 font-bold">{serverStats.uptime}</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-gray-500 text-sm text-center py-4">
+                กำลังโหลดข้อมูล...
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
