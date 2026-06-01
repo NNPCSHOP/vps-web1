@@ -3,6 +3,8 @@
 // NNVPS — สไตล์ร้านเกมอัตโนมัติ
 import { useState, useEffect } from 'react'
 import type { ReactElement } from 'react'
+import generatePayload from 'promptpay-qr'
+import QRCode from 'qrcode'
 import { INIT_MACHINES, INIT_USERS, type Machine, type User } from '@/lib/data'
 
 /* ─── TYPES ─── */
@@ -745,8 +747,8 @@ export default function NNVPSPage() {
             {!paymentDone ? (
               <>
                 <div className="bg-white rounded-xl p-3 mb-4 flex flex-col items-center gap-2">
-                  <MockQRCode />
-                  <div className="text-gray-500 text-xs">PromptPay: 0XX-XXX-XXXX</div>
+                  <PromptPayQRCode amount={selectedPrice || 0} />
+                  <div className="text-gray-500 text-xs">PromptPay: {PROMPTPAY_NUMBER}</div>
                   <div className="text-gray-900 font-black text-xl">฿{selectedPrice?.toLocaleString()}</div>
                 </div>
                 <div className="bg-yellow-950/40 border border-yellow-900/40 rounded-xl p-3 mb-4">
@@ -1938,32 +1940,52 @@ function Footer({ dark }: { dark: boolean }) {
   )
 }
 
-/* ─── MOCK QR CODE ─── */
-function MockQRCode() {
-  const CELL = 6; const N = 25; const SIZE = CELL * N
-  const m: number[][] = Array.from({ length: N }, () => new Array<number>(N).fill(0))
-  function finder(r: number, c: number) {
-    for (let dr = 0; dr < 7; dr++) for (let dc = 0; dc < 7; dc++) {
-      const edge = dr===0||dr===6||dc===0||dc===6, inner = dr>=2&&dr<=4&&dc>=2&&dc<=4
-      m[r+dr][c+dc] = edge||inner ? 1 : 0
+/* ─── PROMPTPAY QR CODE (จริง) ─── */
+const PROMPTPAY_NUMBER = '0652492919'
+
+function PromptPayQRCode({ amount }: { amount: number }) {
+  const [qrDataURL, setQrDataURL] = useState<string>('')
+
+  useEffect(() => {
+    async function generateQR() {
+      try {
+        // สร้าง PromptPay Payload
+        const payload = generatePayload(PROMPTPAY_NUMBER, { amount })
+
+        // แปลงเป็น QR Code Image
+        const dataURL = await QRCode.toDataURL(payload, {
+          width: 200,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        })
+
+        setQrDataURL(dataURL)
+      } catch (error) {
+        console.error('Error generating QR:', error)
+      }
     }
+
+    if (amount > 0) {
+      generateQR()
+    }
+  }, [amount])
+
+  if (!qrDataURL) {
+    return (
+      <div className="w-[200px] h-[200px] bg-gray-200 animate-pulse rounded-lg flex items-center justify-center">
+        <span className="text-gray-400 text-xs">กำลังสร้าง QR...</span>
+      </div>
+    )
   }
-  finder(0,0); finder(0,18); finder(18,0)
-  for (let i=8;i<17;i++){m[6][i]=i%2===0?1:0;m[i][6]=i%2===0?1:0}
-  m[4][9]=1
-  const SEED=[1,0,1,1,0,0,1,0,1,1,0,1,0,1,1,0,0,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,0,0,1,0,0,1,1,0]
-  let si=0
-  for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
-    const inTL=r<9&&c<9,inTR=r<9&&c>15,inBL=r>15&&c<9
-    if (m[r][c]===0&&!inTL&&!inTR&&!inBL) m[r][c]=SEED[si++%SEED.length]
-  }
-  const rects: ReactElement[]=[]
-  for (let r=0;r<N;r++) for (let c=0;c<N;c++)
-    if (m[r][c]===1) rects.push(<rect key={`${r}-${c}`} x={c*CELL} y={r*CELL} width={CELL} height={CELL} fill="black"/>)
+
   return (
-    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} xmlns="http://www.w3.org/2000/svg">
-      <rect width={SIZE} height={SIZE} fill="white"/>
-      {rects}
-    </svg>
+    <img
+      src={qrDataURL}
+      alt="PromptPay QR Code"
+      className="w-[200px] h-[200px]"
+    />
   )
 }

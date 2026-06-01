@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
  * API สำหรับตรวจสอบสลิปโอนเงินผ่าน SlipOK
  */
 
-const SLIPOK_API_KEY = 'SLIPOKBG7PBDP'
+const SLIPOK_API_KEY = 'SLIPOK9UYS6YQ'
+const SLIPOK_API_URL = 'https://api.slipok.com/api/line/apikey/67870'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     // เรียก SlipOK API
-    const response = await fetch('https://api.slipok.com/api/line/apikey/67862', {
+    const response = await fetch(SLIPOK_API_URL, {
       method: 'POST',
       headers: {
         'x-authorization': SLIPOK_API_KEY,
