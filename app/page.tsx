@@ -284,9 +284,11 @@ export default function NNVPSPage() {
   const [filter,          setFilter]      = useState<'all'|'available'|'busy'|'mine'>('all')
   const [lang,            setLang]        = useState<Lang>('th')
   const [selectedPrice,   setSelectedPrice] = useState<number | null>(null)
+  const [paymentMethod,   setPaymentMethod] = useState<'promptpay' | 'truemoney'>('promptpay')
   const [showQR,          setShowQR]      = useState(false)
   const [paymentDone,     setPaymentDone] = useState(false)
   const [confirming,      setConfirming]  = useState(false)
+  const [slipImage,       setSlipImage]   = useState<File | null>(null)
   // สถานะแสดง/ซ่อน login panel มุมขวาบน
   const [showPanel,       setShowPanel]   = useState(false)
   const [showSocial,      setShowSocial]  = useState(false)
@@ -746,31 +748,102 @@ export default function NNVPSPage() {
 
             {!paymentDone ? (
               <>
-                <div className="bg-white rounded-xl p-3 mb-4 flex flex-col items-center gap-2">
-                  <PromptPayQRCode amount={selectedPrice || 0} />
-                  <div className="text-gray-500 text-xs">PromptPay: {PROMPTPAY_NUMBER}</div>
-                  <div className="text-gray-900 font-black text-xl">฿{selectedPrice?.toLocaleString()}</div>
+                {/* เลือกวิธีชำระเงิน */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setPaymentMethod('promptpay')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentMethod === 'promptpay'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    🏦 PromptPay
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('truemoney')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentMethod === 'truemoney'
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    💰 TrueMoney
+                  </button>
                 </div>
-                <div className="bg-yellow-950/40 border border-yellow-900/40 rounded-xl p-3 mb-4">
-                  <div className="text-yellow-500 text-xs font-bold mb-2">{t.autoCheck}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      {[0,1,2].map(i => (
-                        <span key={i} className="block w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce"
-                          style={{ animationDelay: `${i*120}ms` }} />
-                      ))}
+
+                {paymentMethod === 'promptpay' ? (
+                  <>
+                    {/* PromptPay QR */}
+                    <div className="bg-white rounded-xl p-3 mb-4 flex flex-col items-center gap-2">
+                      <PromptPayQRCode amount={selectedPrice || 0} />
+                      <div className="text-gray-500 text-xs">PromptPay: {PROMPTPAY_NUMBER}</div>
+                      <div className="text-gray-900 font-black text-xl">฿{selectedPrice?.toLocaleString()}</div>
                     </div>
-                    <span className="text-yellow-700 text-xs">{t.waitingPayment}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={confirmPayment} disabled={confirming}
-                  className={`w-full py-3 text-sm font-bold rounded-xl transition-all ${
-                    confirming ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500 text-white'
-                  }`}
-                >
-                  {confirming ? t.btnConfirming : t.btnConfirm}
-                </button>
+                    <div className="bg-yellow-950/40 border border-yellow-900/40 rounded-xl p-3 mb-4">
+                      <div className="text-yellow-500 text-xs font-bold mb-2">{t.autoCheck}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          {[0,1,2].map(i => (
+                            <span key={i} className="block w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce"
+                              style={{ animationDelay: `${i*120}ms` }} />
+                          ))}
+                        </div>
+                        <span className="text-yellow-700 text-xs">{t.waitingPayment}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={confirmPayment} disabled={confirming}
+                      className={`w-full py-3 text-sm font-bold rounded-xl transition-all ${
+                        confirming ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500 text-white'
+                      }`}
+                    >
+                      {confirming ? t.btnConfirming : t.btnConfirm}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* TrueMoney QR */}
+                    <div className="bg-white rounded-xl p-3 mb-4 flex flex-col items-center gap-2">
+                      <img
+                        src="/truemoney-qr.png"
+                        alt="TrueMoney QR"
+                        className="w-[200px] h-[200px]"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23f97316"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="14"%3ETrueMoney QR%3C/text%3E%3C/svg%3E'
+                        }}
+                      />
+                      <div className="text-gray-500 text-xs">TrueMoney: 06*-***-2919</div>
+                      <div className="text-gray-900 font-black text-xl">฿{selectedPrice?.toLocaleString()}</div>
+                    </div>
+
+                    {/* อัปโหลดสลิป */}
+                    <div className="bg-gray-800/60 rounded-xl p-3 mb-4">
+                      <div className="text-gray-400 text-xs font-bold mb-2">📎 อัปโหลดสลิปโอนเงิน</div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSlipImage(e.target.files?.[0] || null)}
+                        className="w-full text-xs text-gray-400 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-500 file:cursor-pointer"
+                      />
+                      {slipImage && (
+                        <div className="mt-2 text-green-400 text-xs">✓ {slipImage.name}</div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={confirmPayment}
+                      disabled={!slipImage || confirming}
+                      className={`w-full py-3 text-sm font-bold rounded-xl transition-all ${
+                        slipImage && !confirming
+                          ? 'bg-orange-600 hover:bg-orange-500 text-white'
+                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {confirming ? 'กำลังตรวจสอบสลิป...' : slipImage ? '✓ ยืนยันการชำระเงิน' : 'กรุณาอัปโหลดสลิป'}
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <div className="text-center py-4">
