@@ -1417,49 +1417,6 @@ function AgentTab({ agents, machines, onAddMachine, onUpdateMachine }: {
 
 /* ─── SERVER TAB ─── */
 function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machine[] }) {
-  const [serverStats, setServerStats] = useState<{
-    cpu: number
-    ramUsed: number
-    ramTotal: number
-    ramPercent: number
-    uptime: string
-    platform: string
-    hostname: string
-    gpu?: {
-      gpuName: string
-      gpuUsage: number
-      vramUsed: number
-      vramTotal: number
-      vramPercent: number
-      temperature?: number
-    }
-    power?: {
-      powerConsumption: number
-      hasBattery: boolean
-      batteryPercent?: number
-      isCharging?: boolean
-      acConnected: boolean
-    }
-  } | null>(null)
-
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/server/stats')
-        const data = await res.json()
-        if (data.success) {
-          setServerStats(data.stats)
-        }
-      } catch (error) {
-        console.error('Failed to load server stats:', error)
-      }
-    }
-
-    loadStats()
-    const interval = setInterval(loadStats, 2000)
-    return () => clearInterval(interval)
-  }, [])
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1476,7 +1433,7 @@ function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machin
       {/* เครื่องลูกทั้งหมด */}
       {agents.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/* CPU */}
+          {agents.map(agent => {
         <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-3xl">⚡</span>
