@@ -1434,43 +1434,172 @@ function ServerTab({ agents, machines }: { agents: AgentInfo[]; machines: Machin
       {agents.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {agents.map(agent => {
-        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-3xl">⚡</span>
-            {!serverStats && (
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            )}
-          </div>
-          <div className={`text-3xl font-black mb-1 ${
-            serverStats?.cpu
-              ? serverStats.cpu >= 90 ? 'text-red-400'
-              : serverStats.cpu >= 70 ? 'text-orange-400'
-              : serverStats.cpu >= 50 ? 'text-yellow-400'
-              : 'text-green-400'
-              : 'text-gray-500'
-          }`}>
-            {serverStats?.cpu ? `${serverStats.cpu}%` : '—'}
-          </div>
-          <div className="text-xs text-gray-400 font-bold">CPU Usage</div>
-          {serverStats?.cpu !== undefined && (
-            <div className="mt-3 h-2 bg-gray-800 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  serverStats.cpu >= 90 ? 'bg-red-500'
-                  : serverStats.cpu >= 70 ? 'bg-orange-500'
-                  : serverStats.cpu >= 50 ? 'bg-yellow-500'
-                  : 'bg-green-500'
-                }`}
-                style={{ width: `${serverStats.cpu}%` }}
-              />
-            </div>
-          )}
-        </div>
+            const machine = machines.find(m => m.id === agent.machineId)
+            const isOnline = agent.online
+            const lastSeenMinutes = Math.floor((Date.now() - agent.lastSeen) / 60000)
 
-        {/* RAM */}
-        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-3xl">💾</span>
+            return (
+              <div
+                key={agent.machineId}
+                className={`bg-[#1a1a1a] border rounded-2xl p-4 transition-all ${
+                  isOnline
+                    ? 'border-green-500/30 hover:bg-white/[0.02]'
+                    : 'border-gray-800/60 opacity-60'
+                }`}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      isOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
+                    }`} />
+                    <span className={`text-xs font-bold ${
+                      isOnline ? 'text-green-400' : 'text-gray-500'
+                    }`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                  {!isOnline && lastSeenMinutes < 60 && (
+                    <span className="text-[10px] text-gray-600">
+                      {lastSeenMinutes}m ago
+                    </span>
+                  )}
+                </div>
+
+                {/* Machine Info */}
+                <div className="mb-3">
+                  <div className="text-white font-black text-base mb-1">{agent.name}</div>
+                  <div className="text-gray-500 text-xs font-mono">{agent.ip}</div>
+                  {agent.anydeskId && (
+                    <div className="text-orange-400 text-xs font-mono mt-1">
+                      🖥️ {agent.anydeskId}
+                    </div>
+                  )}
+                </div>
+
+                {/* Stats */}
+                {isOnline && (
+                  <div className="space-y-2 mb-3">
+                    {agent.cpu !== undefined && (
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-gray-400">⚡ CPU</span>
+                          <span className={`font-bold ${
+                            agent.cpu >= 90 ? 'text-red-400'
+                            : agent.cpu >= 70 ? 'text-orange-400'
+                            : agent.cpu >= 50 ? 'text-yellow-400'
+                            : 'text-green-400'
+                          }`}>
+                            {agent.cpu}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              agent.cpu >= 90 ? 'bg-red-500'
+                              : agent.cpu >= 70 ? 'bg-orange-500'
+                              : agent.cpu >= 50 ? 'bg-yellow-500'
+                              : 'bg-green-500'
+                            }`}
+                            style={{ width: `${agent.cpu}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {agent.ramPercent !== undefined && (
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-gray-400">💾 RAM</span>
+                          <span className={`font-bold ${
+                            agent.ramPercent >= 90 ? 'text-red-400'
+                            : agent.ramPercent >= 75 ? 'text-orange-400'
+                            : agent.ramPercent >= 60 ? 'text-yellow-400'
+                            : 'text-blue-400'
+                          }`}>
+                            {agent.ramPercent}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              agent.ramPercent >= 90 ? 'bg-red-500'
+                              : agent.ramPercent >= 75 ? 'bg-orange-500'
+                              : agent.ramPercent >= 60 ? 'bg-yellow-500'
+                              : 'bg-blue-500'
+                            }`}
+                            style={{ width: `${agent.ramPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {agent.uptime && (
+                      <div className="flex items-center justify-between text-xs border-t border-gray-800/50 pt-2 mt-2">
+                        <span className="text-gray-400">⏱️ Uptime</span>
+                        <span className="text-purple-400 font-bold text-[10px]">
+                          {agent.uptime}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {machine?.user && (
+                  <div className="mt-2 pt-2 border-t border-gray-800/50">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500">👤 ผู้เช่า:</span>
+                      <span className="text-yellow-400 font-bold">{machine.user}</span>
+                    </div>
+                    {machine.expiresAt && (
+                      <div className="flex items-center justify-between text-xs mt-1">
+                        <span className="text-gray-600">หมดอายุ:</span>
+                        <span className="text-gray-400 text-[10px]">{machine.expiresAt}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!isOnline && (
+                  <div className="mt-3 bg-gray-900/50 border border-gray-800/50 rounded-lg px-3 py-2 text-center">
+                    <span className="text-gray-600 text-xs">🔌 Offline</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-12 text-center">
+          <div className="text-6xl mb-4">📭</div>
+          <div className="text-gray-400 font-bold">ยังไม่มีเครื่องลูกเชื่อมต่อ</div>
+          <div className="text-gray-600 text-sm mt-2">ติดตั้ง Agent บนเครื่องลูกเพื่อแสดงที่นี่</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── PAYMENTS TAB ─── */
+function PaymentsTab({ payments, onApprove, onReject }: {
+  payments: Payment[]; onApprove: (id: string) => void; onReject: (id: string) => void
+}) {
+  const [filter, setFilter] = useState<PayStatus | 'all'>('all')
+  const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter)
+  const pendingCount  = payments.filter(p => p.status === 'pending').length
+  const approvedTotal = payments.filter(p => p.status === 'approved').reduce((s, p) => s + p.amount, 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-white font-bold">ประวัติการชำระเงิน</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
+            <div className="bg-yellow-500/10 border border-yellow-700/30 rounded-xl px-3 py-1.5 text-center">
+              <div className="text-yellow-400 font-black text-sm">{pendingCount}</div>
+              <div className="text-gray-600 text-[9px]">รอตรวจ</div>
+            </div>
+            <div className="bg-green-500/10 border border-green-700/30 rounded-xl px-3 py-1.5 text-center">
             {!serverStats && (
               <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
             )}
@@ -1871,6 +2000,11 @@ function PaymentsTab({ payments, onApprove, onReject }: {
               <div className="text-gray-600 text-[9px]">อนุมัติแล้ว</div>
             </div>
           </div>
+
+/* SKIP TO LINE 1980 - REAL PAYMENTSTAB */
+}
+
+function PaymentsTabREAL({ payments, onApprove, onReject }: {
           <div className="flex gap-1 bg-black/40 border border-gray-800 rounded-xl p-1">
             {([
               { key: 'all',      label: 'ทั้งหมด' },
